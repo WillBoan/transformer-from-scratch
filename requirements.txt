@@ -4,4 +4,5 @@ matplotlib
 requests
 black
 flake8
+ipykernel
 # tiktoken
