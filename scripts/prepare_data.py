@@ -3,7 +3,10 @@ import requests
 
 
 # URL for the Tiny Shakespeare dataset
-DATASET_URL = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
+DATASET_URL = (
+    "https://raw.githubusercontent.com/karpathy/char-rnn/master/"
+    "data/tinyshakespeare/input.txt"
+)
 # Path to save the dataset
 SAVE_DIR = "data/tinyshakespeare"
 FILE_PATH = os.path.join(SAVE_DIR, "input.txt")
@@ -45,6 +48,7 @@ def prepare_data():
         return
 
     print("Data preparation complete.")
+
 
 if __name__ == "__main__":
     prepare_data()
