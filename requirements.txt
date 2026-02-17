@@ -1,5 +1,7 @@
 torch
-tiktoken
+numpy
 matplotlib
+requests
 black
 flake8
+# tiktoken

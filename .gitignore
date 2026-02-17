@@ -1,20 +1,28 @@
 # Local development files
 .vscode/
+.idea/
+_working_docs/
 .DS_Store
 
-# Python virtual environment
-venv/
-*.pyc
+# Python
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+env/
 
-# Data and model checkpoints
+# Project Artifacts
 data/
 checkpoints/
+*.pt
+*.pth
+*.png
+*.csv
+*.jsonl
 
 # Build artifacts
 build/
 dist/
 *.egg-info
-
-# Working docs
-_working_docs/
