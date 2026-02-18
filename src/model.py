@@ -63,3 +63,72 @@ class Head(nn.Module):
         v: Tensor = self.value(x)  # (B, T, head_size)
         out: Tensor = wei @ v  # (B, T, head_size)
         return out
+
+
+class MultiHeadAttention(nn.Module):
+    """
+    Multiple heads of self-attention in parallel.
+
+    The outputs of each head are concatenated and projected to produce the final output
+    of the multi-head attention layer.
+
+    The multi-head attention mechanism allows the model to attend to different parts of
+    the input sequence simultaneously, capturing various relationships and dependencies
+    between tokens.
+    """
+
+    heads: nn.ModuleList
+    proj: nn.Linear
+
+    def __init__(self, num_heads: int) -> None:
+        super().__init__()
+
+        # Compute the head size
+        self.head_size: Final[int] = n_embd // num_heads
+
+        # Instantiate the specified number of heads and store them in a ModuleList
+        self.heads = nn.ModuleList([Head(self.head_size) for _ in range(num_heads)])
+        self.proj = nn.Linear(n_embd, n_embd)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Forward pass for the Multi-Head Attention layer.
+
+        Args:
+            x (Tensor): Input tensor of shape (batch, time-step, channels).
+
+        Returns:
+            Tensor: Output tensor of shape (batch, time-step, channels).
+        """
+        # Concatenate the outputs of each head along the channel dimension
+        out = torch.cat([h(x) for h in self.heads], dim=-1)
+
+        # Project the concatenated output back to the embedding dimension
+        out = self.proj(out)
+        return out
+
+
+class FeedForward(nn.Module):
+    """A simple linear layer followed by a non-linearity."""
+
+    net: nn.Sequential
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(n_embd, 4 * n_embd),
+            nn.ReLU(),
+            nn.Linear(4 * n_embd, n_embd),
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Forward pass for the Feed-Forward layer.
+
+        Args:
+            x (Tensor): Input tensor of shape (batch, time-step, channels).
+
+        Returns:
+            Tensor: Output tensor of shape (batch, time-step, channels).
+        """
+        return self.net(x)
