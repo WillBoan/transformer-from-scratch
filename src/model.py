@@ -101,7 +101,9 @@ class MultiHeadAttention(nn.Module):
             Tensor: Output tensor of shape (batch, time-step, channels).
         """
         # Concatenate the outputs of each head along the channel dimension
-        out = torch.cat([h(x) for h in self.heads], dim=-1)
+        out = torch.cat(
+            [h(x) for h in self.heads], dim=-1
+        )  # (B, T, head_size * num_heads) = (B, T, n_embd)
 
         # Project the concatenated output back to the embedding dimension
         out = self.proj(out)
@@ -132,3 +134,184 @@ class FeedForward(nn.Module):
             Tensor: Output tensor of shape (batch, time-step, channels).
         """
         return self.net(x)
+
+
+class Block(nn.Module):
+    """
+    Transformer block: communication followed by computation.
+
+    Each block consists of a multi-head self-attention layer followed by a
+    feed-forward layer, with layer normalization and residual connections
+    around each of these two sub-layers.
+
+    `nn.LayerNorm` normalizes the inputs across the features dimension. It
+    helps stabilize and accelerate training by keeping the input distribution
+    to each layer consistent. In Transformers, LayerNorm is applied to the
+    outputs of the attention and feed-forward sub-layers to improve stability
+    and convergence. Residual connections around each sub-layer let the model
+    learn identity mappings, which helps mitigate vanishing gradients and
+    enables deeper networks.
+
+    Mathematically, `LayerNorm` computes the mean and variance of the input
+    across the features dimension, normalizes the input, and then applies
+    learnable scaling and shifting parameters. This allows the model to
+    maintain the representational power while ensuring that the inputs to
+    each layer have a stable distribution.
+
+    Is this similar to how we use `softmax` to normalize attention scores
+    across the sequence dimension? In both cases we normalize values to
+    improve stability and convergence, but they operate on different
+    dimensions and serve different purposes. `softmax` normalizes across the
+    sequence dimension to produce attention weights, while `LayerNorm`
+    normalizes across the features dimension to stabilize the input
+    distribution for each layer.
+
+    The "features dimension" refers to the last dimension of the input
+    tensor, which corresponds to the embedding dimension in the context of
+    Transformers. For example, if the input tensor has shape
+    (batch_size, sequence_length, embedding_dim), LayerNorm will normalize
+    across the embedding_dim dimension for each token in the sequence.
+
+    "Residual connections" means that we add the input of a layer to its
+    output before passing it to the next layer.
+    """
+
+    sa: MultiHeadAttention
+    ffwd: FeedForward
+    ln1: nn.LayerNorm
+    ln2: nn.LayerNorm
+
+    def __init__(self, num_heads: int) -> None:
+        super().__init__()
+        self.ln1 = nn.LayerNorm(n_embd)
+        self.sa = MultiHeadAttention(num_heads=num_heads)
+        self.ln2 = nn.LayerNorm(n_embd)
+        self.ffwd = FeedForward()
+
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Forward pass for the Transformer Block.
+
+        Args:
+            x (Tensor): Input tensor of shape (batch, time-step, channels).
+
+        Returns:
+            Tensor: Output tensor of shape (batch, time-step, channels).
+        """
+        # Self-attention with residual connection
+        x = x + self.sa(self.ln1(x))
+        # Feed-forward with residual connection
+        x = x + self.ffwd(self.ln2(x))
+        return x
+
+
+class Transformer(nn.Module):
+    """
+    The full Transformer model.
+
+    The Transformer model consists of an embedding layer for tokens and positions,
+    followed by a stack of Transformer blocks, and finally a linear layer to
+    project the output to the vocabulary size for language modeling.
+
+
+
+    """
+
+    token_embedding_table: nn.Embedding
+    position_embedding_table: nn.Embedding
+    blocks: nn.Sequential
+    ln_f: nn.LayerNorm
+    lm_head: nn.Linear
+
+    def __init__(
+        self,
+        vocab_size: int,
+        n_layer: int,
+        num_heads: int,
+    ) -> None:
+        super().__init__()
+        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
+        self.position_embedding_table = nn.Embedding(block_size, n_embd)
+        self.blocks = nn.Sequential(
+            *[Block(num_heads=num_heads) for _ in range(n_layer)]
+        )
+        self.ln_f = nn.LayerNorm(n_embd)  # final layer norm
+        self.lm_head = nn.Linear(n_embd, vocab_size)
+
+    def forward(
+        self,
+        idx: Tensor,
+        targets: Tensor | None = None,
+    ) -> tuple[Tensor, Tensor | None]:
+        """
+        Forward pass for the Transformer model.
+
+        Args:
+            idx (Tensor): Input tensor of token indices, shape (B, T).
+            targets (Tensor | None): Target tensor of token indices, shape (B, T).
+
+        Returns:
+            tuple[Tensor, Tensor | None]: A tuple containing:
+                - logits (Tensor): The model's output logits, shape (B, T, vocab_size).
+                - loss (Tensor | None): The cross-entropy loss, or None if targets are
+                    not provided.
+        """
+        B, T = idx.shape
+
+        # Get token and position embeddings
+        tok_emb = self.token_embedding_table(idx)  # (B, T, C)
+        pos_emb = self.position_embedding_table(
+            torch.arange(T, device=idx.device)
+        )  # (T, C)
+        x = tok_emb + pos_emb  # (B, T, C)
+
+        # Pass through transformer blocks
+        x = self.blocks(x)  # (B, T, C)
+        x = self.ln_f(x)  # (B, T, C)
+
+        # Get logits
+        logits = self.lm_head(x)  # (B, T, vocab_size)
+
+        # Calculate loss if targets are provided
+        loss = None
+        if targets is not None:
+            B, T, C = logits.shape
+            logits_for_loss = logits.view(B * T, C)
+            targets_for_loss = targets.view(B * T)
+            loss = F.cross_entropy(logits_for_loss, targets_for_loss)
+
+        return logits, loss
+
+    def generate(
+        self,
+        idx: Tensor,
+        max_new_tokens: int,
+    ) -> Tensor:
+        """
+        Generate new tokens given a starting sequence of token indices.
+
+        Args:
+            idx (Tensor): Input tensor of token indices, shape (B, T).
+            max_new_tokens (int): The maximum number of new tokens to generate.
+
+        Returns:
+            Tensor: The generated sequence of token indices, shape
+                (B, T + max_new_tokens).
+        """
+        for _ in range(max_new_tokens):
+            # Get the model's predictions for the current input
+            logits, _loss = self(idx)  # logits shape: (B, T, vocab_size)
+
+            # Focus on the last time step's logits
+            logits = logits[:, -1, :]  # (B, vocab_size)
+
+            # Apply softmax to get probabilities and sample from the distribution
+            probs = F.softmax(logits, dim=-1)  # (B, vocab_size)
+
+            # Sample the next token from the probability distribution
+            next_token = torch.multinomial(probs, num_samples=1)  # (B, 1)
+
+            # Append the predicted token to the input sequence
+            idx = torch.cat((idx, next_token), dim=1)  # (B, T+1)
+
+        return idx
