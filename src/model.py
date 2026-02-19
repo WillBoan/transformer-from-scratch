@@ -350,8 +350,6 @@ class Transformer(nn.Module):
         """
         with torch.no_grad():
             for _ in range(max_new_tokens):
-                print(f"Current input shape: {idx.shape}")  # Debugging statement
-
                 # Crop idx to the last block_size tokens
                 block_size = self.block_size
                 idx_cond = idx[:, -block_size:]
