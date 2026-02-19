@@ -103,7 +103,14 @@ class MultiHeadAttention(nn.Module):
 
         # Instantiate the specified number of heads and store them in a ModuleList
         self.heads = nn.ModuleList(
-            [Head(self.head_size, n_embd, block_size) for _ in range(n_head)]
+            [
+                Head(
+                    head_size=self.head_size,
+                    block_size=block_size,
+                    n_embd=n_embd,
+                )
+                for _ in range(n_head)
+            ]
         )
         self.proj = nn.Linear(n_embd, n_embd)
         self.dropout = nn.Dropout(dropout)
