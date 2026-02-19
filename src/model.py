@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Final, overload
+from typing import Final
 import math
 
 import torch
@@ -14,15 +14,6 @@ from config import (
 )
 
 
-# --- Hyperparameters ---
-# For now, we'll keep them here. Later, we'll move them to a config file.
-block_size = 8  # what is the maximum context length for predictions?
-n_embd = 32  # embedding dimension
-
-
-# --- Model Components ---
-
-
 class Head(nn.Module):
     """One head of self-attention"""
 
@@ -31,9 +22,11 @@ class Head(nn.Module):
     value: nn.Linear
     tril: Tensor  # registered buffer (causal mask)
 
-    def __init__(self, head_size: int) -> None:
+    def __init__(self, head_size: int, n_embd: int, block_size: int) -> None:
         super().__init__()
         self.head_size: Final[int] = head_size
+        self.n_embd: Final[int] = n_embd
+        self.registered_block_size: Final[int] = block_size
 
         self.key = nn.Linear(n_embd, head_size, bias=False)
         self.query = nn.Linear(n_embd, head_size, bias=False)
@@ -86,18 +79,29 @@ class MultiHeadAttention(nn.Module):
     heads: nn.ModuleList
     proj: nn.Linear
 
-    def __init__(self, num_heads: int) -> None:
+    def __init__(
+        self,
+        num_heads: int,
+        n_embd: int,
+        block_size: int,
+        dropout: float = DEFAULT_DROPOUT,
+    ) -> None:
         super().__init__()
 
         # Compute the head size
         assert (
             n_embd % num_heads == 0
         ), "Embedding dimension must be divisible by number of heads"
+        self.n_embd: Final[int] = n_embd
         self.head_size: Final[int] = n_embd // num_heads
+        self.num_heads: Final[int] = num_heads
 
         # Instantiate the specified number of heads and store them in a ModuleList
-        self.heads = nn.ModuleList([Head(self.head_size) for _ in range(num_heads)])
+        self.heads = nn.ModuleList(
+            [Head(self.head_size, n_embd, block_size) for _ in range(num_heads)]
+        )
         self.proj = nn.Linear(n_embd, n_embd)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -116,6 +120,10 @@ class MultiHeadAttention(nn.Module):
 
         # Project the concatenated output back to the embedding dimension
         out = self.proj(out)
+
+        # Apply dropout
+        out = self.dropout(out)
+
         return out
 
 
@@ -124,12 +132,17 @@ class FeedForward(nn.Module):
 
     net: nn.Sequential
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        n_embd: int,
+        dropout: float = DEFAULT_DROPOUT,
+    ) -> None:
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
             nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(dropout),
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -190,12 +203,23 @@ class Block(nn.Module):
     ln1: nn.LayerNorm
     ln2: nn.LayerNorm
 
-    def __init__(self, num_heads: int) -> None:
+    def __init__(
+        self,
+        num_heads: int,
+        n_embd: int,
+        block_size: int,
+        dropout: float = DEFAULT_DROPOUT,
+    ) -> None:
         super().__init__()
         self.ln1 = nn.LayerNorm(n_embd)
-        self.sa = MultiHeadAttention(num_heads=num_heads)
+        self.sa = MultiHeadAttention(
+            num_heads=num_heads,
+            n_embd=n_embd,
+            block_size=block_size,
+            dropout=dropout,
+        )
         self.ln2 = nn.LayerNorm(n_embd)
-        self.ffwd = FeedForward()
+        self.ffwd = FeedForward(n_embd=n_embd, dropout=dropout)
 
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -237,15 +261,35 @@ class Transformer(nn.Module):
         vocab_size: int,
         n_layer: int,
         num_heads: int,
+        n_embd: int | None = None,
+        block_size: int | None = None,
+        dropout: float | None = None,
     ) -> None:
         super().__init__()
-        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
-        self.position_embedding_table = nn.Embedding(block_size, n_embd)
-        self.blocks = nn.Sequential(
-            *[Block(num_heads=num_heads) for _ in range(n_layer)]
+        # use provided values or fall back to config defaults
+        self.n_embd: Final[int] = n_embd if n_embd is not None else DEFAULT_N_EMBD
+        self.block_size: Final[int] = (
+            block_size if block_size is not None else DEFAULT_BLOCK_SIZE
         )
-        self.ln_f = nn.LayerNorm(n_embd)  # final layer norm
-        self.lm_head = nn.Linear(n_embd, vocab_size)
+        self.dropout: Final[float] = dropout if dropout is not None else DEFAULT_DROPOUT
+        self.num_heads: Final[int] = num_heads
+        self.n_layer: Final[int] = n_layer
+
+        self.token_embedding_table = nn.Embedding(vocab_size, self.n_embd)
+        self.position_embedding_table = nn.Embedding(self.block_size, self.n_embd)
+        self.blocks = nn.Sequential(
+            *[
+                Block(
+                    num_heads=num_heads,
+                    n_embd=self.n_embd,
+                    block_size=self.block_size,
+                    dropout=self.dropout,
+                )
+                for _ in range(n_layer)
+            ]
+        )
+        self.ln_f = nn.LayerNorm(self.n_embd)  # final layer norm
+        self.lm_head = nn.Linear(self.n_embd, vocab_size)
 
     def forward(
         self,
@@ -284,7 +328,7 @@ class Transformer(nn.Module):
         # Calculate loss if targets are provided
         loss = None
         if targets is not None:
-            B, T, C = logits.shape
+            B, T, C = logits.shape  # pyright: ignore[reportConstantRedefinition]
             logits_for_loss = logits.view(B * T, C)
             targets_for_loss = targets.view(B * T)
             loss = F.cross_entropy(logits_for_loss, targets_for_loss)
@@ -307,7 +351,9 @@ class Transformer(nn.Module):
         with torch.no_grad():
             for _ in range(max_new_tokens):
                 print(f"Current input shape: {idx.shape}")  # Debugging statement
+
                 # Crop idx to the last block_size tokens
+                block_size = self.block_size
                 idx_cond = idx[:, -block_size:]
 
                 # Get the model's predictions for the current input
