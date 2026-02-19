@@ -271,15 +271,17 @@ class Transformer(nn.Module):
         dropout: float | None = None,
     ) -> None:
         super().__init__()
-        # use provided values or fall back to config defaults
-        self.n_embd: Final[int] = n_embd if n_embd is not None else DEFAULT_N_EMBD
+
+        # Set model parameters, using defaults if not provided
         self.block_size: Final[int] = (
             block_size if block_size is not None else DEFAULT_BLOCK_SIZE
         )
+        self.n_embd: Final[int] = n_embd if n_embd is not None else DEFAULT_N_EMBD
         self.dropout: Final[float] = dropout if dropout is not None else DEFAULT_DROPOUT
         self.n_head: Final[int] = n_head
         self.n_layer: Final[int] = n_layer
 
+        # Layers
         self.token_embedding_table = nn.Embedding(vocab_size, self.n_embd)
         self.position_embedding_table = nn.Embedding(self.block_size, self.n_embd)
         self.blocks = nn.Sequential(
