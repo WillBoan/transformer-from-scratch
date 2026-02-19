@@ -32,7 +32,7 @@ class Head(nn.Module):
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
 
-        tril = torch.tril(torch.ones(block_size, block_size))
+        tril = torch.tril(torch.ones(block_size, block_size, dtype=torch.bool))
         self.register_buffer("tril", tril)
 
     def forward(self, x: Tensor) -> Tensor:
