@@ -22,7 +22,12 @@ class Head(nn.Module):
     value: nn.Linear
     tril: Tensor  # registered buffer (causal mask)
 
-    def __init__(self, head_size: int, n_embd: int, block_size: int) -> None:
+    def __init__(
+        self,
+        head_size: int,
+        block_size: int,
+        n_embd: int,
+    ) -> None:
         super().__init__()
         self.head_size: Final[int] = head_size
         self.n_embd: Final[int] = n_embd
@@ -81,24 +86,24 @@ class MultiHeadAttention(nn.Module):
 
     def __init__(
         self,
-        num_heads: int,
-        n_embd: int,
+        n_head: int,
         block_size: int,
+        n_embd: int,
         dropout: float = DEFAULT_DROPOUT,
     ) -> None:
         super().__init__()
 
         # Compute the head size
         assert (
-            n_embd % num_heads == 0
+            n_embd % n_head == 0
         ), "Embedding dimension must be divisible by number of heads"
         self.n_embd: Final[int] = n_embd
-        self.head_size: Final[int] = n_embd // num_heads
-        self.num_heads: Final[int] = num_heads
+        self.head_size: Final[int] = n_embd // n_head
+        self.n_head: Final[int] = n_head
 
         # Instantiate the specified number of heads and store them in a ModuleList
         self.heads = nn.ModuleList(
-            [Head(self.head_size, n_embd, block_size) for _ in range(num_heads)]
+            [Head(self.head_size, n_embd, block_size) for _ in range(n_head)]
         )
         self.proj = nn.Linear(n_embd, n_embd)
         self.dropout = nn.Dropout(dropout)
@@ -116,7 +121,7 @@ class MultiHeadAttention(nn.Module):
         # Concatenate the outputs of each head along the channel dimension
         out = torch.cat(
             [h(x) for h in self.heads], dim=-1
-        )  # (B, T, head_size * num_heads) = (B, T, n_embd)
+        )  # (B, T, head_size * n_head) = (B, T, n_embd)
 
         # Project the concatenated output back to the embedding dimension
         out = self.proj(out)
@@ -198,22 +203,22 @@ class Block(nn.Module):
     output before passing it to the next layer.
     """
 
-    sa: MultiHeadAttention
+    mha: MultiHeadAttention
     ffwd: FeedForward
     ln1: nn.LayerNorm
     ln2: nn.LayerNorm
 
     def __init__(
         self,
-        num_heads: int,
-        n_embd: int,
+        n_head: int,
         block_size: int,
+        n_embd: int,
         dropout: float = DEFAULT_DROPOUT,
     ) -> None:
         super().__init__()
         self.ln1 = nn.LayerNorm(n_embd)
-        self.sa = MultiHeadAttention(
-            num_heads=num_heads,
+        self.mha = MultiHeadAttention(
+            n_head=n_head,
             n_embd=n_embd,
             block_size=block_size,
             dropout=dropout,
@@ -232,7 +237,7 @@ class Block(nn.Module):
             Tensor: Output tensor of shape (batch, time-step, channels).
         """
         # Self-attention with residual connection
-        x = x + self.sa(self.ln1(x))
+        x = x + self.mha(self.ln1(x))
         # Feed-forward with residual connection
         x = x + self.ffwd(self.ln2(x))
         return x
@@ -260,9 +265,9 @@ class Transformer(nn.Module):
         self,
         vocab_size: int,
         n_layer: int,
-        num_heads: int,
-        n_embd: int | None = None,
+        n_head: int,
         block_size: int | None = None,
+        n_embd: int | None = None,
         dropout: float | None = None,
     ) -> None:
         super().__init__()
@@ -272,7 +277,7 @@ class Transformer(nn.Module):
             block_size if block_size is not None else DEFAULT_BLOCK_SIZE
         )
         self.dropout: Final[float] = dropout if dropout is not None else DEFAULT_DROPOUT
-        self.num_heads: Final[int] = num_heads
+        self.n_head: Final[int] = n_head
         self.n_layer: Final[int] = n_layer
 
         self.token_embedding_table = nn.Embedding(vocab_size, self.n_embd)
@@ -280,7 +285,7 @@ class Transformer(nn.Module):
         self.blocks = nn.Sequential(
             *[
                 Block(
-                    num_heads=num_heads,
+                    n_head=n_head,
                     n_embd=self.n_embd,
                     block_size=self.block_size,
                     dropout=self.dropout,
