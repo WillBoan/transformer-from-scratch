@@ -305,6 +305,30 @@ class Transformer(nn.Module):
         self.ln_f = nn.LayerNorm(self.n_embd)  # final layer norm
         self.lm_head = nn.Linear(self.n_embd, vocab_size)
 
+        # Initialize weights
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module: nn.Module) -> None:
+        """
+        Initialize module weights.
+        - Linear and Embedding weights are initialized from N(0, 0.02).
+        - Linear biases are zeroed.
+        - LayerNorm weights are ones and biases are zeros.
+
+        Args:
+            module (nn.Module): The module to initialize.
+        """
+        std = 0.02
+        if isinstance(module, nn.Linear):
+            nn.init.normal_(module.weight, mean=0.0, std=std)
+            if module.bias is not None:  # pyright: ignore[reportUnnecessaryComparison]
+                nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            nn.init.normal_(module.weight, mean=0.0, std=std)
+        elif isinstance(module, nn.LayerNorm):
+            nn.init.ones_(module.weight)
+            nn.init.zeros_(module.bias)
+
     def forward(
         self,
         idx: Tensor,
