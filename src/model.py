@@ -1,11 +1,17 @@
 from __future__ import annotations
-from typing import Final
+from typing import Final, overload
 import math
 
 import torch
 from torch import Tensor
 import torch.nn as nn
 from torch.nn import functional as F
+
+from config import (
+    block_size as DEFAULT_BLOCK_SIZE,
+    n_embd as DEFAULT_N_EMBD,
+    dropout as DEFAULT_DROPOUT,
+)
 
 
 # --- Hyperparameters ---
@@ -84,6 +90,9 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
 
         # Compute the head size
+        assert (
+            n_embd % num_heads == 0
+        ), "Embedding dimension must be divisible by number of heads"
         self.head_size: Final[int] = n_embd // num_heads
 
         # Instantiate the specified number of heads and store them in a ModuleList
@@ -259,18 +268,18 @@ class Transformer(nn.Module):
         B, T = idx.shape
 
         # Get token and position embeddings
-        tok_emb = self.token_embedding_table(idx)  # (B, T, C)
-        pos_emb = self.position_embedding_table(
+        tok_emb: Tensor = self.token_embedding_table(idx)  # (B, T, C)
+        pos_emb: Tensor = self.position_embedding_table(
             torch.arange(T, device=idx.device)
         )  # (T, C)
         x = tok_emb + pos_emb  # (B, T, C)
 
         # Pass through transformer blocks
-        x = self.blocks(x)  # (B, T, C)
+        x: Tensor = self.blocks(x)  # (B, T, C)
         x = self.ln_f(x)  # (B, T, C)
 
         # Get logits
-        logits = self.lm_head(x)  # (B, T, vocab_size)
+        logits: Tensor = self.lm_head(x)  # (B, T, vocab_size)
 
         # Calculate loss if targets are provided
         loss = None
@@ -282,36 +291,59 @@ class Transformer(nn.Module):
 
         return logits, loss
 
-    def generate(
-        self,
-        idx: Tensor,
-        max_new_tokens: int,
-    ) -> Tensor:
+    def generate(self, idx: Tensor, max_new_tokens: int) -> Tensor:
         """
-        Generate new tokens given a starting sequence of token indices.
+        Generate new tokens based on a given context.
 
         Args:
-            idx (Tensor): Input tensor of token indices, shape (B, T).
+            idx (Tensor): The initial context, an input tensor of token indices.
+                - Shape: (B, T)
             max_new_tokens (int): The maximum number of new tokens to generate.
 
         Returns:
-            Tensor: The generated sequence of token indices, shape
-                (B, T + max_new_tokens).
+            Tensor: The generated sequence of token indices.
+                - Shape: (B, T + max_new_tokens)
         """
-        for _ in range(max_new_tokens):
-            # Get the model's predictions for the current input
-            logits, _loss = self(idx)  # logits shape: (B, T, vocab_size)
+        with torch.no_grad():
+            for _ in range(max_new_tokens):
+                print(f"Current input shape: {idx.shape}")  # Debugging statement
+                # Crop idx to the last block_size tokens
+                idx_cond = idx[:, -block_size:]
 
-            # Focus on the last time step's logits
-            logits = logits[:, -1, :]  # (B, vocab_size)
+                # Get the model's predictions for the current input
+                logits, _loss = self(idx_cond)  # logits shape: (B, T, vocab_size)
 
-            # Apply softmax to get probabilities and sample from the distribution
-            probs = F.softmax(logits, dim=-1)  # (B, vocab_size)
+                # Focus only on the last time step
+                logits = logits[:, -1, :]  # (B, vocab_size)
 
-            # Sample the next token from the probability distribution
-            next_token = torch.multinomial(probs, num_samples=1)  # (B, 1)
+                # Apply softmax to get probabilities and sample from the distribution
+                probs = F.softmax(logits, dim=-1)  # (B, vocab_size)
 
-            # Append the predicted token to the input sequence
-            idx = torch.cat((idx, next_token), dim=1)  # (B, T+1)
+                # Sample the next token from the probability distribution
+                idx_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
+
+                # Append the predicted token to the input sequence
+                idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
 
         return idx
+
+    # @overload
+    # def __call__(
+    #     self,
+    #     idx: Tensor,
+    #     targets: Tensor,
+    # ) -> tuple[Tensor, Tensor]: ...
+
+    # @overload
+    # def __call__(
+    #     self,
+    #     idx: Tensor,
+    #     targets: None = None,
+    # ) -> tuple[Tensor, None]: ...
+
+    # def __call__(
+    #     self,
+    #     idx: Tensor,
+    #     targets: Tensor | None = None,
+    # ) -> tuple[Tensor, Tensor | None]:
+    #     return super().__call__(idx, targets)
