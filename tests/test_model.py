@@ -224,3 +224,38 @@ def test_transformer_forward():
     assert torch.isfinite(loss).all(), "Loss is not finite"
     assert isinstance(loss_value, float), "Loss should be a Python float"
     assert loss_value > 0, "Loss should be positive"
+
+
+def test_transformer_gradients():
+    B, T, C = 2, 8, 8
+    vocab_size = 100
+    n_layer = 2
+    n_head = 2
+
+    model = Transformer(
+        vocab_size=vocab_size,
+        n_layer=n_layer,
+        n_head=n_head,
+        block_size=T,
+        n_embd=C,
+    )
+
+    # Create dummy input and target tensors
+    idx = torch.randint(0, vocab_size, (B, T))
+    targets = torch.randint(0, vocab_size, (B, T))
+
+    _logits: Tensor
+    loss: Tensor
+    _logits, loss = model(idx, targets)
+
+    loss.backward()  # type: ignore
+
+    block1: Block = model.blocks[0]  # type: ignore
+
+    # Check gradients in key parts of the model
+    assert model.token_embedding_table.weight.grad is not None
+    assert block1.mha.proj.weight.grad is not None
+    assert model.lm_head.weight.grad is not None
+    assert torch.isfinite(model.token_embedding_table.weight.grad).all()
+    assert torch.isfinite(block1.mha.proj.weight.grad).all()
+    assert torch.isfinite(model.lm_head.weight.grad).all()
