@@ -1,7 +1,7 @@
 from typing import Literal
 import torch
 from torch import Tensor
-from config import batch_size, block_size, device
+from config import BATCH_SIZE, BLOCK_SIZE, DEVICE, DATASET_PATH
 
 
 class DataManager:
@@ -17,7 +17,7 @@ class DataManager:
     train_data: Tensor
     val_data: Tensor
 
-    def __init__(self, file_path: str = "data/tinyshakespeare/input.txt") -> None:
+    def __init__(self, file_path: str = DATASET_PATH) -> None:
         """
         Initializes the data manager by loading and processing the dataset.
 
@@ -87,13 +87,13 @@ class DataManager:
         data = self.train_data if split == "train" else self.val_data
 
         # Generate random starting indices for the batch
-        ix = torch.randint(len(data) - block_size, (batch_size,))
+        ix = torch.randint(len(data) - BLOCK_SIZE, (BATCH_SIZE,))
 
         # Create input sequences (x) and target sequences (y)
-        x = torch.stack([data[i : i + block_size] for i in ix])  # noqa E203
-        y = torch.stack([data[i + 1 : i + block_size + 1] for i in ix])  # noqa E203
+        x = torch.stack([data[i : i + BLOCK_SIZE] for i in ix])  # noqa E203
+        y = torch.stack([data[i + 1 : i + BLOCK_SIZE + 1] for i in ix])  # noqa E203
 
         # Move tensors to the configured device
-        x, y = x.to(device), y.to(device)
+        x, y = x.to(DEVICE), y.to(DEVICE)
 
         return x, y

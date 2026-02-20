@@ -4,7 +4,7 @@ import torch.nn as nn
 from model import Head, MultiHeadAttention, FeedForward, Block, Transformer
 
 
-torch.manual_seed(0)  # type: ignore
+torch.manual_seed(0)  # pyright: ignore[reportUnknownMemberType]
 
 
 def test_head_forward():

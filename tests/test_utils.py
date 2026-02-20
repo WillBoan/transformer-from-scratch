@@ -1,6 +1,6 @@
 import torch
 
-from config import batch_size, block_size
+from config import BATCH_SIZE, BLOCK_SIZE
 from utils import DataManager
 
 
@@ -17,10 +17,10 @@ def test_get_batch():
     x_val, y_val = data_manager.get_batch("val")
 
     # --- Shape Checks ---
-    assert x_train.shape == (batch_size, block_size)
-    assert y_train.shape == (batch_size, block_size)
-    assert x_val.shape == (batch_size, block_size)
-    assert y_val.shape == (batch_size, block_size)
+    assert x_train.shape == (BATCH_SIZE, BLOCK_SIZE)
+    assert y_train.shape == (BATCH_SIZE, BLOCK_SIZE)
+    assert x_val.shape == (BATCH_SIZE, BLOCK_SIZE)
+    assert y_val.shape == (BATCH_SIZE, BLOCK_SIZE)
 
     # --- Dtype Checks ---
     assert x_train.dtype == torch.long

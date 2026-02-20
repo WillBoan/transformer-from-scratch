@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Final
+from typing import Final, overload
 import math
 
 import torch
@@ -8,9 +8,9 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from config import (
-    block_size as DEFAULT_BLOCK_SIZE,
-    n_embd as DEFAULT_N_EMBD,
-    dropout as DEFAULT_DROPOUT,
+    BLOCK_SIZE as DEFAULT_BLOCK_SIZE,
+    N_EMBD as DEFAULT_N_EMBD,
+    DROPOUT as DEFAULT_DROPOUT,
 )
 
 
@@ -409,23 +409,23 @@ class Transformer(nn.Module):
 
         return idx
 
-    # @overload
-    # def __call__(
-    #     self,
-    #     idx: Tensor,
-    #     targets: Tensor,
-    # ) -> tuple[Tensor, Tensor]: ...
+    @overload
+    def __call__(
+        self,
+        idx: Tensor,
+        targets: Tensor,
+    ) -> tuple[Tensor, Tensor]: ...
 
-    # @overload
-    # def __call__(
-    #     self,
-    #     idx: Tensor,
-    #     targets: None = None,
-    # ) -> tuple[Tensor, None]: ...
+    @overload
+    def __call__(
+        self,
+        idx: Tensor,
+        targets: None = None,
+    ) -> tuple[Tensor, None]: ...
 
-    # def __call__(
-    #     self,
-    #     idx: Tensor,
-    #     targets: Tensor | None = None,
-    # ) -> tuple[Tensor, Tensor | None]:
-    #     return super().__call__(idx, targets)
+    def __call__(
+        self,
+        idx: Tensor,
+        targets: Tensor | None = None,
+    ) -> tuple[Tensor, Tensor | None]:
+        return super().__call__(idx, targets)
