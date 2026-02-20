@@ -16,6 +16,7 @@ env/
 # Project Artifacts
 data/
 checkpoints/
+examples/
 *.pt
 *.pth
 *.png
