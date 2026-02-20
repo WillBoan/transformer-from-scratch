@@ -7,11 +7,7 @@ from torch import Tensor
 import torch.nn as nn
 from torch.nn import functional as F
 
-from config import (
-    BLOCK_SIZE as DEFAULT_BLOCK_SIZE,
-    N_EMBD as DEFAULT_N_EMBD,
-    DROPOUT as DEFAULT_DROPOUT,
-)
+from config import BLOCK_SIZE, N_EMBD, DROPOUT
 
 
 class Head(nn.Module):
@@ -89,7 +85,7 @@ class MultiHeadAttention(nn.Module):
         n_head: int,
         block_size: int,
         n_embd: int,
-        dropout: float = DEFAULT_DROPOUT,
+        dropout: float = DROPOUT,
     ) -> None:
         super().__init__()
 
@@ -147,7 +143,7 @@ class FeedForward(nn.Module):
     def __init__(
         self,
         n_embd: int,
-        dropout: float = DEFAULT_DROPOUT,
+        dropout: float = DROPOUT,
     ) -> None:
         super().__init__()
         self.net = nn.Sequential(
@@ -220,7 +216,7 @@ class Block(nn.Module):
         n_head: int,
         block_size: int,
         n_embd: int,
-        dropout: float = DEFAULT_DROPOUT,
+        dropout: float = DROPOUT,
     ) -> None:
         super().__init__()
         self.ln1 = nn.LayerNorm(n_embd)
@@ -281,10 +277,10 @@ class Transformer(nn.Module):
 
         # Set model parameters, using defaults if not provided
         self.block_size: Final[int] = (
-            block_size if block_size is not None else DEFAULT_BLOCK_SIZE
+            block_size if block_size is not None else BLOCK_SIZE
         )
-        self.n_embd: Final[int] = n_embd if n_embd is not None else DEFAULT_N_EMBD
-        self.dropout: Final[float] = dropout if dropout is not None else DEFAULT_DROPOUT
+        self.n_embd: Final[int] = n_embd if n_embd is not None else N_EMBD
+        self.dropout: Final[float] = dropout if dropout is not None else DROPOUT
         self.n_head: Final[int] = n_head
         self.n_layer: Final[int] = n_layer
 
