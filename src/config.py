@@ -31,3 +31,4 @@ device: str = (
 
 # --- Checkpointing ---
 out_dir: str = "checkpoints"
+log_file: str = "logs.jsonl"
