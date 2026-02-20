@@ -78,7 +78,7 @@ class DataManager:
         Generate a small batch of data of inputs x and targets y.
 
         Args:
-            split (Literal["train", "val"]): The data split to use.
+            split (Literal["train", "val"]): Which data split to use.
 
         Returns:
             A tuple containing the input and target tensors.
