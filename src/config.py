@@ -10,25 +10,27 @@ import torch
 
 
 # --- Model Parameters ---
-block_size: int = 8  # Maximum context length for predictions
-n_embd: int = 32  # Embedding dimension
-n_head: int = 4  # Number of attention heads
-n_layer: int = 2  # Number of transformer blocks
-dropout: float = 0.0  # Dropout rate (0 means no dropout)
+BLOCK_SIZE: int = 8  # Maximum context length for predictions
+N_EMBD: int = 32  # Embedding dimension
+N_HEAD: int = 4  # Number of attention heads
+N_LAYER: int = 2  # Number of transformer blocks
+DROPOUT: float = 0.0  # Dropout rate (0 means no dropout)
 
 # --- Training Parameters ---
-batch_size: int = 64  # How many independent sequences will we process in parallel?
-learning_rate: float = 3e-4
-max_iters: int = 5000
-eval_interval: int = 500
-eval_iters: int = 200
+BATCH_SIZE: int = 64  # How many independent sequences to process in parallel
+LEARNING_RATE: float = 3e-4  # Learning rate for the optimizer
+MAX_ITERS: int = 5000  # Total number of training iterations
+EVAL_INTERVAL: int = 500  # How often to evaluate the model on train and val sets
+EVAL_ITERS: int = 200  # Number of iterations to evaluate for each split (train and val)
+GRAD_CLIP: float = 1.0  # Clip gradients at this value
 # Prefer CUDA, then MPS, else CPU
-device: str = (
+DEVICE: str = (
     "cuda"
     if torch.cuda.is_available()
     else ("mps" if torch.backends.mps.is_available() else "cpu")
 )
 
-# --- Checkpointing ---
-out_dir: str = "checkpoints"
-log_file: str = "logs.jsonl"
+# --- Data and Checkpointing ---
+DATASET_PATH: str = "data/tinyshakespeare/input.txt"
+CHECKPOINT_DIR: str = "checkpoints"
+TRAINING_LOG_FILE: str = "logs.jsonl"
