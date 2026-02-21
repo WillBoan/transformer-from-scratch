@@ -44,7 +44,7 @@ class CheckpointManager:
         """Get the target path for a given checkpoint type."""
         return os.path.join(self.checkpoint_dir, f"{self.prefix}_{checkpoint_type}.pt")
 
-    def save(
+    def _save(
         self,
         state: CheckpointState,
         checkpoint_type: Literal["latest", "best"] = "latest",
@@ -56,16 +56,30 @@ class CheckpointManager:
         os.replace(tmp, path)  # atomic on most OSes
         return path
 
-    def save_if_best(
+    def save(
         self,
         state: CheckpointState,
         current_val: float,
         best_val: float | None,
     ) -> float:
-        """Save 'best' if current_val < best_val. Returns new best_val."""
-        self.save(state, checkpoint_type="latest")
+        """
+        Main save method.
+
+        - Always saves 'latest'.
+        - Updates 'best' if improved.
+
+        Args:
+            state (CheckpointState): The checkpoint state to save.
+            current_val (float): The current validation loss.
+            best_val (float | None): The best validation loss so far
+                (or None if no best yet).
+
+        Returns:
+            best_val (float): The updated best validation loss (after this save).
+        """
+        self._save(state, checkpoint_type="latest")
         if best_val is None or current_val < best_val:
-            self.save(state, checkpoint_type="best")
+            self._save(state, checkpoint_type="best")
             best_val = current_val
         return best_val
 

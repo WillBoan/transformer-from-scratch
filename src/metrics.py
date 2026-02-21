@@ -11,14 +11,14 @@ class MetricEntry:
     Structured representation of a single metric entry.
 
     Args:
-    - iter: The training iteration number at which the metrics were recorded.
+    - iter_num: The training iteration number at which the metrics were recorded.
     - train_loss: The training loss at this iteration.
     - val_loss: The validation loss at this iteration.
     - lr: The learning rate at this iteration.
     - time_ms: The time taken for the evaluation step, in milliseconds.
     """
 
-    iter: int
+    iter_num: int
     train_loss: float
     val_loss: float
     lr: float

@@ -1,34 +1,54 @@
-from typing import Any
-import json
+from contextlib import nullcontext
 import os
 import time
-from contextlib import nullcontext
 
 import torch
 
 import config as cfg
 from model import Transformer
 from utils import DataManager
+from logging_config import setup_logging
+from metrics import MetricsLogger, MetricEntry
+from checkpoint_manager import CheckpointManager, CheckpointState
+
+logger = setup_logging()
 
 
 class Trainer:
     """
     A class to encapsulate the training and evaluation loop for the Transformer model.
+
+    Attributes:
+    - ctx: A context manager for mixed precision training (torch.autocast)
+        or a null context if not using mixed precision.
+    - data_manager: An instance of DataManager for handling data loading,
+        tokenization, and batching.
+    - model: The Transformer model being trained.
+    - optimizer: The optimizer used for training the model (e.g., AdamW).
     """
 
-    ctx: torch.autocast  # Context manager for mixed precision training
+    ctx: torch.autocast | nullcontext[None]
     data_manager: DataManager
     model: Transformer
     optimizer: torch.optim.Optimizer
 
-    def __init__(self) -> None:
+    def __init__(self, resume: bool = True) -> None:
         """Initializes the Trainer, setting up the model, optimizer, and data."""
-        torch.manual_seed(1337)  # pyright: ignore[reportUnknownMemberType]
+        torch.manual_seed(cfg.SEED)  # pyright: ignore[reportUnknownMemberType]
 
         # Set up directories and device context
         os.makedirs(cfg.CHECKPOINT_DIR, exist_ok=True)
-        pt_dtype = torch.float16 if "cuda" in cfg.DEVICE else torch.float32
-        self.ctx = torch.autocast(device_type=cfg.DEVICE, dtype=pt_dtype)
+        if cfg.DEVICE == "cuda":
+            self.ctx = torch.autocast(device_type="cuda")
+        else:
+            self.ctx = nullcontext()
+
+        # Initialize helpers
+        self.metrics = MetricsLogger(cfg.TRAINING_LOG_FILE)
+        self.checkpoint_manager = CheckpointManager(
+            checkpoint_dir=cfg.CHECKPOINT_DIR,
+            prefix=cfg.CHECKPOINT_FILE_PREFIX,
+        )
 
         # Initialize data manager
         self.data_manager = DataManager()
@@ -43,7 +63,7 @@ class Trainer:
             dropout=cfg.DROPOUT,
         )
         self.model.to(cfg.DEVICE)
-        print(f"Model loaded on {cfg.DEVICE}")
+        logger.info(f"Model loaded on {cfg.DEVICE}")
 
         # Initialize optimizer
         self.optimizer = torch.optim.AdamW(
@@ -51,12 +71,28 @@ class Trainer:
             lr=cfg.LEARNING_RATE,
         )
 
+        # Training state
+        self.iter_num = 0
+        self.best_val_loss: float | None = None
+
+        # Optionally resume from latest checkpoint
+        if resume:
+            state = self.checkpoint_manager.load("latest")
+            if state is not None:
+                logger.info(f"Resuming from checkpoint iter={state.iter_num}")
+                self.model.load_state_dict(state.model_state_dict)
+                self.optimizer.load_state_dict(state.optimizer_state_dict)
+                self.iter_num = state.iter_num + 1
+                self.best_val_loss = state.best_val_loss
+            else:
+                raise FileNotFoundError("No checkpoint found to resume from.")
+
     @torch.no_grad()
     def _estimate_loss(self) -> dict[str, float]:
-        """Calculates the average loss over eval_iters for train and val splits."""
+        """Calculates the average loss over EVAL_ITERS for train and val splits."""
         out: dict[str, float] = {}
 
-        # Set the model to evaluation mode (disabling gradient calculations)
+        # Set the model to evaluation mode (disabling dropout, etc.)
         self.model.eval()
 
         # Evaluate loss on both training and validation splits
@@ -69,52 +105,56 @@ class Trainer:
                 losses[k] = loss.item()
             out[split] = losses.mean().item()
 
-        # Set the model back to training mode
+        # Restore training mode
         self.model.train()
 
         return out
 
+    def _save_checkpoint(self, iter_num: int, best_val_loss: float) -> None:
+        state = CheckpointState(
+            model_state_dict=self.model.state_dict(),
+            optimizer_state_dict=self.optimizer.state_dict(),
+            iter_num=iter_num,
+            best_val_loss=best_val_loss,
+        )
+        # Save (saves latest, and updates best if improved)
+        self.best_val_loss = self.checkpoint_manager.save(
+            state,
+            current_val=best_val_loss,
+            best_val=self.best_val_loss,
+        )
+
     def train(self) -> None:
         """Runs the main training loop."""
-        iter_num = 0
-        best_val_loss = float("inf")
         start_time = time.time()
+        logger.info("--- Starting Training ---")
 
-        print("--- Starting Training ---")
-        while iter_num < cfg.MAX_ITERS:
+        while self.iter_num < cfg.MAX_ITERS:
             # Evaluate loss and save checkpoint periodically
-            if iter_num % cfg.EVAL_INTERVAL == 0 or iter_num == cfg.MAX_ITERS - 1:
+            if (
+                self.iter_num % cfg.EVAL_INTERVAL == 0
+                or self.iter_num == cfg.MAX_ITERS - 1
+            ):
                 losses = self._estimate_loss()
                 elapsed_time = time.time() - start_time
-                print(
-                    f"step {iter_num}: "
+                logger.info(
+                    f"step {self.iter_num}: "
                     f"train loss {losses['train']:.4f}, "
                     f"val loss {losses['val']:.4f}"
                 )
 
-                # Log metrics
-                log_entry: dict[str, int | float] = {
-                    "iter": iter_num,
-                    "train_loss": losses["train"],
-                    "val_loss": losses["val"],
-                    "lr": cfg.LEARNING_RATE,
-                    "time_ms": elapsed_time * 1000,
-                }
-                with open(cfg.TRAINING_LOG_FILE, "a") as f:
-                    f.write(json.dumps(log_entry) + "\n")
+                # Log metrics (structured)
+                entry = MetricEntry(
+                    iter_num=self.iter_num,
+                    train_loss=losses["train"],
+                    val_loss=losses["val"],
+                    lr=cfg.LEARNING_RATE,
+                    time_ms=elapsed_time * 1000.0,
+                )
+                self.metrics.log(entry)
 
-                # Save best checkpoint
-                if losses["val"] < best_val_loss:
-                    best_val_loss = losses["val"]
-                    checkpoint: dict[str, Any] = {
-                        "model_state_dict": self.model.state_dict(),
-                        "optimizer_state_dict": self.optimizer.state_dict(),
-                        "iter_num": iter_num,
-                        "best_val_loss": best_val_loss,
-                    }
-                    ckpt_path = os.path.join(cfg.CHECKPOINT_DIR, "best_ckpt.pt")
-                    print(f"Saving new best checkpoint to {ckpt_path}")
-                    torch.save(checkpoint, ckpt_path)
+                # Save checkpoint(s)
+                self._save_checkpoint(self.iter_num, losses["val"])
 
             # Get a batch and perform a training step
             xb, yb = self.data_manager.get_batch("train")
@@ -131,12 +171,12 @@ class Trainer:
             # Optimizer step (to update model parameters)
             self.optimizer.step()
 
-            iter_num += 1
+            self.iter_num += 1
 
-        print("\n--- Training Complete ---")
-        print(f"Final best validation loss: {best_val_loss:.4f}")
+        logger.info("--- Training Complete ---")
+        logger.info(f"Final best validation loss: {self.best_val_loss:.4f}")
 
 
 if __name__ == "__main__":
-    trainer = Trainer()
+    trainer = Trainer(resume=True)
     trainer.train()
