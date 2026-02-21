@@ -105,7 +105,7 @@ class Trainer:
         # --- Training state ---
         self.iter_num = 0
         self.best_val_loss: float | None = None
-        self.config_dict = {k: v for k, v in vars(cfg).items() if not k.startswith("_")}
+        self.config_dict = {k: v for k, v in vars(cfg).items() if k.isupper()}
 
         # --- Resume from checkpoint if available ---
         if resume:
