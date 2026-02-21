@@ -241,7 +241,7 @@ class Trainer:
             loss, grad_norm = self._train_step()
 
             # Log grad norm occasionally
-            if self.iter_num % 100 == 0:
+            if self.iter_num % cfg.LOG_INTERVAL == 0:
                 logger.info(
                     f"Iter {self.iter_num}: loss {loss:.4f}, grad_norm {grad_norm:.4f}"
                 )

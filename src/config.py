@@ -46,3 +46,4 @@ DATASET_PATH: str = "data/tinyshakespeare/input.txt"
 CHECKPOINT_DIR: str = f"checkpoints/{RUN_NAME}"
 CHECKPOINT_FILE_PREFIX: str = "ckpt"
 TRAINING_LOG_FILE: str = f"{CHECKPOINT_DIR}/metrics.jsonl"
+LOG_INTERVAL: int = 100  # How often to log training progress to the console
