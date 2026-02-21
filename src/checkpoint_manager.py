@@ -16,6 +16,7 @@ class CheckpointState:
     - iter_num: The training iteration number at which the checkpoint was saved.
     - latest_val_loss: The validation loss at the time of saving this checkpoint.
     - best_val_loss: The best validation loss achieved up to this checkpoint.
+    - config: The training configuration (e.g., hyperparameters) at the time of saving.
     """
 
     model_state_dict: Final[dict[str, Any]]
@@ -23,6 +24,7 @@ class CheckpointState:
     iter_num: Final[int]
     latest_val_loss: Final[float]
     best_val_loss: float | None
+    config: Final[dict[str, Any]]
 
 
 class CheckpointManager:
