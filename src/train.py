@@ -77,7 +77,7 @@ class Trainer:
 
         # Optionally resume from latest checkpoint
         if resume:
-            state = self.checkpoint_manager.load("latest")
+            state: CheckpointState | None = self.checkpoint_manager.load("latest")
             if state is not None:
                 logger.info(f"Resuming from checkpoint iter={state.iter_num}")
                 self.model.load_state_dict(state.model_state_dict)
@@ -110,19 +110,62 @@ class Trainer:
 
         return out
 
-    def _save_checkpoint(self, iter_num: int, best_val_loss: float) -> None:
+    def _save_checkpoint(self, iter_num: int, latest_val_loss: float) -> None:
+        # Compute if the latest is a new best (lower is better)
+        if self.best_val_loss is None or latest_val_loss < self.best_val_loss:
+            self.best_val_loss = latest_val_loss
+
+        # Prepare checkpoint state
         state = CheckpointState(
             model_state_dict=self.model.state_dict(),
             optimizer_state_dict=self.optimizer.state_dict(),
             iter_num=iter_num,
-            best_val_loss=best_val_loss,
+            latest_val_loss=latest_val_loss,
+            best_val_loss=self.best_val_loss,
         )
-        # Save (saves latest, and updates best if improved)
-        self.best_val_loss = self.checkpoint_manager.save(
-            state,
-            current_val=best_val_loss,
-            best_val=self.best_val_loss,
+
+        # Save (latest, and best if improved)
+        self.checkpoint_manager.save(state, checkpoint_type="latest")
+        if latest_val_loss == self.best_val_loss:
+            self.checkpoint_manager.save(state, checkpoint_type="best")
+
+    def _evaluate_and_checkpoint(self, start_time: float) -> None:
+        losses = self._estimate_loss()
+        elapsed_time = time.time() - start_time
+        logger.info(
+            f"step {self.iter_num}: "
+            f"train loss {losses['train']:.4f}, "
+            f"val loss {losses['val']:.4f}"
         )
+
+        # Log metrics (structured)
+        entry = MetricEntry(
+            iter_num=self.iter_num,
+            train_loss=losses["train"],
+            val_loss=losses["val"],
+            lr=cfg.LEARNING_RATE,
+            time_ms=elapsed_time * 1000.0,
+        )
+        self.metrics.log(entry)
+
+        # Save checkpoint(s)
+        self._save_checkpoint(self.iter_num, losses["val"])
+
+    def _train_step(self) -> None:
+        """Performs a single training step (forward, backward, optimize)."""
+        xb, yb = self.data_manager.get_batch("train")
+        with self.ctx:
+            _logits, loss = self.model(xb, yb)
+
+        # Backpropagation (compute gradients)
+        self.optimizer.zero_grad(set_to_none=True)
+        loss.backward()  # pyright: ignore[reportUnknownMemberType]
+
+        # Gradient clipping to prevent exploding gradients
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), cfg.GRAD_CLIP)
+
+        # Optimizer step (to update model parameters)
+        self.optimizer.step()
 
     def train(self) -> None:
         """Runs the main training loop."""
@@ -135,41 +178,10 @@ class Trainer:
                 self.iter_num % cfg.EVAL_INTERVAL == 0
                 or self.iter_num == cfg.MAX_ITERS - 1
             ):
-                losses = self._estimate_loss()
-                elapsed_time = time.time() - start_time
-                logger.info(
-                    f"step {self.iter_num}: "
-                    f"train loss {losses['train']:.4f}, "
-                    f"val loss {losses['val']:.4f}"
-                )
-
-                # Log metrics (structured)
-                entry = MetricEntry(
-                    iter_num=self.iter_num,
-                    train_loss=losses["train"],
-                    val_loss=losses["val"],
-                    lr=cfg.LEARNING_RATE,
-                    time_ms=elapsed_time * 1000.0,
-                )
-                self.metrics.log(entry)
-
-                # Save checkpoint(s)
-                self._save_checkpoint(self.iter_num, losses["val"])
+                self._evaluate_and_checkpoint(start_time)
 
             # Get a batch and perform a training step
-            xb, yb = self.data_manager.get_batch("train")
-            with self.ctx:
-                _logits, loss = self.model(xb, yb)
-
-            # Backpropagation (compute gradients)
-            self.optimizer.zero_grad(set_to_none=True)
-            loss.backward()  # pyright: ignore[reportUnknownMemberType]
-
-            # Gradient clipping to prevent exploding gradients
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), cfg.GRAD_CLIP)
-
-            # Optimizer step (to update model parameters)
-            self.optimizer.step()
+            self._train_step()
 
             self.iter_num += 1
 
