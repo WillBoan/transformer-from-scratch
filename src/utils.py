@@ -37,6 +37,8 @@ class DataManager:
 
     def load_data(self, file_path: str) -> None:
         """Loads the dataset from the specified file path."""
+        # NOTE: This loads the entire dataset into memory
+        # TODO: For larger datasets, consider streaming, chunking, or memory-mapping
         with open(file_path, "r", encoding="utf-8") as f:
             self.text = f.read()
 
