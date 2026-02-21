@@ -29,6 +29,7 @@ MIN_LR: float = 3e-5  # Minimum learning rate after decay
 WEIGHT_DECAY: float = 1e-1  # Weight decay for regularization
 MAX_ITERS: int = 5000  # Total number of training iterations
 LR_DECAY_ITERS: int = 5000  # No. iters to decay learning rate (should be <= MAX_ITERS)
+WARMUP_ITERS: int = 0  # No. iters for learning rate warmup (should be <= MAX_ITERS)
 USE_COSINE_LR: bool = True  # Whether to use cosine learning rate decay
 EVAL_INTERVAL: int = 500  # How often to evaluate the model on train and val sets
 EVAL_ITERS: int = 200  # Number of iterations to evaluate for each split (train and val)
