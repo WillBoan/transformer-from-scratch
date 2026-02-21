@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Any, Literal, Final
 import os
 from dataclasses import dataclass
 import torch
@@ -18,11 +18,11 @@ class CheckpointState:
     - best_val_loss: The best validation loss achieved up to this checkpoint.
     """
 
-    model_state_dict: dict[str, Any]
-    optimizer_state_dict: dict[str, Any]
-    iter_num: int
-    latest_val_loss: float
-    best_val_loss: float
+    model_state_dict: Final[dict[str, Any]]
+    optimizer_state_dict: Final[dict[str, Any]]
+    iter_num: Final[int]
+    latest_val_loss: Final[float]
+    best_val_loss: float | None
 
 
 class CheckpointManager:
@@ -46,7 +46,7 @@ class CheckpointManager:
         """Get the target path for a given checkpoint type."""
         return os.path.join(self.checkpoint_dir, f"{self.prefix}_{checkpoint_type}.pt")
 
-    def save(
+    def _save(
         self,
         state: CheckpointState,
         checkpoint_type: Literal["latest", "best"] = "latest",
@@ -57,6 +57,28 @@ class CheckpointManager:
         torch.save(state.__dict__, tmp)
         os.replace(tmp, path)  # atomic on most OSes
         return path
+
+    def save(self, state: CheckpointState) -> float:
+        """
+        Save 'latest' checkpoint, and also 'best' if val loss improved.
+
+        Args:
+            state (CheckpointState): The checkpoint state to save, which includes
+                the latest validation loss and the best validation loss so far.
+
+        Returns:
+            best_val_loss (float): The best validation loss after saving the checkpoint
+                (which may be updated, if the latest validation loss is better than the
+                previous best).
+        """
+        # Check if the latest validation loss is a new best
+        if state.best_val_loss is None or state.latest_val_loss < state.best_val_loss:
+            # Important: update best_val_loss in state before saving either checkpoint
+            state.best_val_loss = state.latest_val_loss
+            self._save(state, checkpoint_type="best")
+        self._save(state, checkpoint_type="latest")
+
+        return state.best_val_loss
 
     def load(
         self,

@@ -117,11 +117,6 @@ class Trainer:
         return out
 
     def _save_checkpoint(self, iter_num: int, latest_val_loss: float) -> None:
-        # Compute if the latest is a new best (lower is better)
-        if self.best_val_loss is None or latest_val_loss < self.best_val_loss:
-            self.best_val_loss = latest_val_loss
-
-        # Prepare checkpoint state
         state = CheckpointState(
             model_state_dict=self.model.state_dict(),
             optimizer_state_dict=self.optimizer.state_dict(),
@@ -129,11 +124,8 @@ class Trainer:
             latest_val_loss=latest_val_loss,
             best_val_loss=self.best_val_loss,
         )
-
-        # Save (latest, and best if improved)
-        self.checkpoint_manager.save(state, checkpoint_type="latest")
-        if latest_val_loss == self.best_val_loss:
-            self.checkpoint_manager.save(state, checkpoint_type="best")
+        # Save latest checkpoint, and also best if improved. Update self.best_val_loss.
+        self.best_val_loss = self.checkpoint_manager.save(state)
 
     def _evaluate_and_checkpoint(self, start_time: float) -> None:
         losses = self._estimate_loss()
