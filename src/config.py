@@ -9,6 +9,10 @@ are intentionally lightweight (no runtime logic beyond device selection).
 import torch
 
 
+# --- Run Details ---
+RUN_NAME: str = "shakespeare_v1"
+SEED: int = 1337
+
 # --- Model Parameters ---
 BLOCK_SIZE: int = 8  # Maximum context length for predictions
 N_EMBD: int = 32  # Embedding dimension
@@ -32,5 +36,6 @@ DEVICE: str = (
 
 # --- Data and Checkpointing ---
 DATASET_PATH: str = "data/tinyshakespeare/input.txt"
-CHECKPOINT_DIR: str = "checkpoints"
-TRAINING_LOG_FILE: str = "logs.jsonl"
+CHECKPOINT_DIR: str = f"checkpoints/{RUN_NAME}"
+CHECKPOINT_FILE_PREFIX: str = "ckpt"
+TRAINING_LOG_FILE: str = f"{CHECKPOINT_DIR}/metrics.jsonl"
