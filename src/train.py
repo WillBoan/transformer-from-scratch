@@ -126,7 +126,7 @@ class Trainer:
         if not cfg.USE_COSINE_LR:
             return cfg.LEARNING_RATE
         # 1) linear warmup for warmup_iters steps
-        if it < cfg.WARMUP_ITERS:
+        if cfg.WARMUP_ITERS > 0 and it < cfg.WARMUP_ITERS:
             return cfg.LEARNING_RATE * it / cfg.WARMUP_ITERS
         # 2) if it > lr_decay_iters, return min learning rate
         if it > cfg.LR_DECAY_ITERS:
