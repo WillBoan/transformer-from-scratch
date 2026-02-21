@@ -231,20 +231,22 @@ class Trainer:
         """Runs the main training loop."""
         start_time = time.time()
         self.logger.info("--- Starting Training ---")
-        while self.iter_num < max_iters:
-            # Evaluate loss and save checkpoint periodically
-            if self.iter_num % cfg.EVAL_INTERVAL == 0 or self.iter_num == max_iters - 1:
-                self._evaluate_and_checkpoint(start_time)
 
+        while self.iter_num < max_iters:
+            # Perform a training step
             loss, grad_norm = self._train_step()
 
-            # Log grad norm occasionally
+            self.iter_num += 1
+
+            # Log grad norm periodically
             if self.iter_num % cfg.LOG_INTERVAL == 0:
                 self.logger.info(
                     f"Iter {self.iter_num}: loss {loss:.4f}, grad_norm {grad_norm:.4f}"
                 )
 
-            self.iter_num += 1
+            # Evaluate loss and save checkpoint periodically
+            if self.iter_num % cfg.EVAL_INTERVAL == 0 or self.iter_num == max_iters:
+                self._evaluate_and_checkpoint(start_time)
 
         self.logger.info("--- Training Complete ---")
         if self.best_val_loss:
