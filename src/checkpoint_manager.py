@@ -52,12 +52,16 @@ class CheckpointManager:
         self,
         state: CheckpointState,
         checkpoint_type: Literal["latest", "best"] = "latest",
+        atomic: bool = True,
     ) -> str:
         """Atomically save checkpoint and return path."""
         path = self._get_checkpoint_path(checkpoint_type)
-        tmp = path + ".tmp"
-        torch.save(state.__dict__, tmp)
-        os.replace(tmp, path)  # atomic on most OSes
+        if atomic:
+            tmp = path + ".tmp"
+            torch.save(state.__dict__, tmp)
+            os.replace(tmp, path)  # atomic on most OSes
+        else:
+            torch.save(state.__dict__, path)
         return path
 
     def save(self, state: CheckpointState) -> float:
