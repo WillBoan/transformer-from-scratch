@@ -67,6 +67,10 @@ class Trainer:
             if cfg.DEVICE == "cuda"
             else nullcontext()
         )
+        if cfg.DEVICE == "mps":
+            logger.warning(
+                "Mixed precision is not supported on MPS. Using full precision."
+            )
         self.scaler = torch.GradScaler(enabled=(cfg.DEVICE == "cuda"))
 
         # --- Initialize helpers ---
