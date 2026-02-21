@@ -33,7 +33,13 @@ class Trainer:
     optimizer: torch.optim.Optimizer
 
     def __init__(self, resume: bool = True) -> None:
-        """Initializes the Trainer, setting up the model, optimizer, and data."""
+        """
+        Initializes the Trainer, setting up the model, optimizer, and data.
+
+        Args:
+            resume (bool): If True, resume training from the latest checkpoint
+                if available; otherwise start from scratch. Defaults to True.
+        """
         torch.manual_seed(cfg.SEED)  # pyright: ignore[reportUnknownMemberType]
 
         # Set up directories and device context
@@ -85,7 +91,7 @@ class Trainer:
                 self.iter_num = state.iter_num + 1
                 self.best_val_loss = state.best_val_loss
             else:
-                raise FileNotFoundError("No checkpoint found to resume from.")
+                logger.info("No checkpoint found, starting from scratch.")
 
     @torch.no_grad()
     def _estimate_loss(self) -> dict[str, float]:
