@@ -93,15 +93,11 @@ class Trainer:
         logger.info(f"Model loaded on {cfg.DEVICE}")
 
         # --- Initialize optimizer ---
-        self.optimizer = self.model.configure_optimizers(
-            cfg.WEIGHT_DECAY,
-            cfg.LEARNING_RATE,
-            (0.9, 0.95),
-        )  # pyright: ignore[reportCallIssue]
-        assert isinstance(
-            self.optimizer,  # pyright: ignore[reportUnknownMemberType]
-            torch.optim.Optimizer,
-        ), "configure_optimizers should return a torch.optim.Optimizer instance"
+        self.optimizer = self.model.configure_optimizer(
+            weight_decay=cfg.WEIGHT_DECAY,
+            learning_rate=cfg.LEARNING_RATE,
+            betas=(0.9, 0.95),
+        )
 
         # --- Training state ---
         self.iter_num = 0
@@ -226,16 +222,13 @@ class Trainer:
         # Return the loss and grad norm for logging
         return loss.item(), grad_norm.item()
 
-    def train(self) -> None:
+    def train(self, max_iters: int = cfg.MAX_ITERS) -> None:
         """Runs the main training loop."""
         start_time = time.time()
         logger.info("--- Starting Training ---")
-        while self.iter_num < cfg.MAX_ITERS:
+        while self.iter_num < max_iters:
             # Evaluate loss and save checkpoint periodically
-            if (
-                self.iter_num % cfg.EVAL_INTERVAL == 0
-                or self.iter_num == cfg.MAX_ITERS - 1
-            ):
+            if self.iter_num % cfg.EVAL_INTERVAL == 0 or self.iter_num == max_iters - 1:
                 self._evaluate_and_checkpoint(start_time)
 
             loss, grad_norm = self._train_step()

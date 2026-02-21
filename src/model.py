@@ -325,6 +325,30 @@ class Transformer(nn.Module):
             nn.init.ones_(module.weight)
             nn.init.zeros_(module.bias)
 
+    def configure_optimizer(
+        self,
+        weight_decay: float,
+        learning_rate: float,
+        betas: tuple[float, float],
+    ) -> torch.optim.AdamW:
+        """
+        Configures the optimizer for the Transformer model.
+
+        Args:
+            weight_decay (float): Weight decay for regularization.
+            learning_rate (float): Learning rate for the optimizer.
+            betas (tuple[float, float]): Betas for the AdamW optimizer.
+
+        Returns:
+            torch.optim.AdamW: The configured optimizer.
+        """
+        return torch.optim.AdamW(
+            self.parameters(),
+            lr=learning_rate,
+            betas=betas,
+            weight_decay=weight_decay,
+        )
+
     def forward(
         self,
         idx: Tensor,
