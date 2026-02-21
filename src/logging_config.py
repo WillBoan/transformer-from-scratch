@@ -4,7 +4,7 @@ from logging.handlers import RotatingFileHandler
 import config as cfg
 
 
-def setup_logging():
+def setup_logging() -> logging.Logger:
     """Configure root logger: console + rotating file in checkpoint dir."""
     os.makedirs(cfg.CHECKPOINT_DIR, exist_ok=True)
     logger = logging.getLogger()

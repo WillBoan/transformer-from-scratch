@@ -1,8 +1,9 @@
 from typing import Any
-from contextlib import nullcontext
+from logging import Logger
 import os
 import math
 import time
+from contextlib import nullcontext
 
 import torch
 
@@ -13,14 +14,13 @@ from logging_config import setup_logging
 from metrics import MetricsLogger, MetricEntry
 from checkpoint_manager import CheckpointManager, CheckpointState
 
-logger = setup_logging()
-
 
 class Trainer:
     """
     A class to encapsulate the training and evaluation loop for the Transformer model.
 
     Attributes:
+    - logger: A Logger instance for logging training progress and events.
     - ctx: A context manager for mixed precision training (torch.autocast)
         or a null context if not using mixed precision.
     - scaler: A GradScaler for scaling gradients when using mixed precision.
@@ -39,6 +39,7 @@ class Trainer:
         to be saved with checkpoints.
     """
 
+    logger: Logger
     ctx: torch.autocast | nullcontext[None]
     scaler: torch.GradScaler
     metrics_logger: MetricsLogger
@@ -58,6 +59,8 @@ class Trainer:
             resume (bool): If True, resume training from the latest checkpoint
                 if available; otherwise start from scratch. Defaults to True.
         """
+        self.logger = setup_logging()
+
         torch.manual_seed(cfg.SEED)  # pyright: ignore[reportUnknownMemberType]
 
         # --- Setup directories, device context, and scaler ---
@@ -68,7 +71,7 @@ class Trainer:
             else nullcontext()
         )
         if cfg.DEVICE == "mps":
-            logger.warning(
+            self.logger.warning(
                 "Mixed precision is not supported on MPS. Using full precision."
             )
         self.scaler = torch.GradScaler(enabled=(cfg.DEVICE == "cuda"))
@@ -90,7 +93,7 @@ class Trainer:
             dropout=cfg.DROPOUT,
         )
         self.model.to(cfg.DEVICE)
-        logger.info(f"Model loaded on {cfg.DEVICE}")
+        self.logger.info(f"Model loaded on {cfg.DEVICE}")
 
         # --- Initialize optimizer ---
         self.optimizer = self.model.configure_optimizer(
@@ -112,9 +115,11 @@ class Trainer:
                 self.optimizer.load_state_dict(state.optimizer_state_dict)
                 self.iter_num = state.iter_num
                 self.best_val_loss = state.best_val_loss
-                logger.info(f"Resumed from checkpoint at iteration {self.iter_num}")
+                self.logger.info(
+                    f"Resumed from checkpoint at iteration {self.iter_num}"
+                )
             else:
-                logger.info("No checkpoint found, starting from scratch.")
+                self.logger.info("No checkpoint found, starting from scratch.")
 
     def get_lr(self, it: int) -> float:
         """Get learning rate for a given iteration using cosine decay."""
@@ -171,7 +176,7 @@ class Trainer:
         try:
             losses = self._estimate_loss()
             elapsed_time = time.time() - start_time
-            logger.info(
+            self.logger.info(
                 f"step {self.iter_num}: "
                 f"train loss {losses['train']:.4f}, "
                 f"val loss {losses['val']:.4f}"
@@ -190,7 +195,7 @@ class Trainer:
             # Save checkpoint(s)
             self._save_checkpoint(self.iter_num, losses["val"])
         except Exception as e:
-            logger.error(
+            self.logger.error(
                 f"Failed to evaluate or save checkpoint at iter {self.iter_num}: {e}"
             )
 
@@ -225,7 +230,7 @@ class Trainer:
     def train(self, max_iters: int = cfg.MAX_ITERS) -> None:
         """Runs the main training loop."""
         start_time = time.time()
-        logger.info("--- Starting Training ---")
+        self.logger.info("--- Starting Training ---")
         while self.iter_num < max_iters:
             # Evaluate loss and save checkpoint periodically
             if self.iter_num % cfg.EVAL_INTERVAL == 0 or self.iter_num == max_iters - 1:
@@ -235,15 +240,15 @@ class Trainer:
 
             # Log grad norm occasionally
             if self.iter_num % cfg.LOG_INTERVAL == 0:
-                logger.info(
+                self.logger.info(
                     f"Iter {self.iter_num}: loss {loss:.4f}, grad_norm {grad_norm:.4f}"
                 )
 
             self.iter_num += 1
 
-        logger.info("--- Training Complete ---")
+        self.logger.info("--- Training Complete ---")
         if self.best_val_loss:
-            logger.info(f"Final best validation loss: {self.best_val_loss:.4f}")
+            self.logger.info(f"Final best validation loss: {self.best_val_loss:.4f}")
 
 
 if __name__ == "__main__":
