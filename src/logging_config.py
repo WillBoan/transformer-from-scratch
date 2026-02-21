@@ -1,14 +1,12 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler
-import config as cfg
 
 
-def setup_logging() -> logging.Logger:
-    """Configure root logger: console + rotating file in checkpoint dir."""
-    os.makedirs(cfg.CHECKPOINT_DIR, exist_ok=True)
-
+def setup_logging(run_dir: str) -> logging.Logger:
+    """Configure root logger: console + rotating file in the specified run dir."""
     logger = logging.getLogger("transformer_trainer")
+
     logger.setLevel(logging.INFO)
 
     # Prevent messages from propagating to the root logger (and pytest's handlers)
@@ -22,7 +20,7 @@ def setup_logging() -> logging.Logger:
     ch.setFormatter(fmt)
 
     # Rotating file handler
-    fh_path = os.path.join(cfg.CHECKPOINT_DIR, f"{cfg.RUN_NAME}.log")
+    fh_path = os.path.join(run_dir, "logs.log")
     fh = RotatingFileHandler(fh_path, maxBytes=10_000_000, backupCount=5)
     fh.setLevel(logging.INFO)
     fh.setFormatter(fmt)

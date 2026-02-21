@@ -6,13 +6,11 @@ imported from other modules. Values are defined as module-level constants and
 are intentionally lightweight (no runtime logic beyond device selection).
 """
 
-import time
 import torch
 
 
 # --- Run Details ---
-time_str = time.strftime("%Y-%m-%d_%H-%M-%S")
-RUN_NAME: str = f"{time_str}_shakespeare_v1"
+RUN_NAME_PREFIX: str = "shakespeare_v1"
 SEED: int = 1337
 
 # --- Model Parameters ---
@@ -43,7 +41,6 @@ DEVICE: str = (
 
 # --- Data and Checkpointing ---
 DATASET_PATH: str = "data/tinyshakespeare/input.txt"
-CHECKPOINT_DIR: str = f"checkpoints/{RUN_NAME}"
+CHECKPOINT_PARENT_DIR: str = "checkpoints"
 CHECKPOINT_FILE_PREFIX: str = "ckpt"
-TRAINING_LOG_FILE: str = f"{CHECKPOINT_DIR}/metrics.jsonl"
 LOG_INTERVAL: int = 100  # How often to log training progress to the console

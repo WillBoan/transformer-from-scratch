@@ -2,7 +2,7 @@ from typing import Any, Literal, Final
 import os
 from dataclasses import dataclass
 import torch
-from config import CHECKPOINT_DIR, CHECKPOINT_FILE_PREFIX
+from config import CHECKPOINT_FILE_PREFIX
 
 
 @dataclass
@@ -34,7 +34,7 @@ class CheckpointManager:
 
     def __init__(
         self,
-        checkpoint_dir: str = CHECKPOINT_DIR,
+        checkpoint_dir: str,
         prefix: str = CHECKPOINT_FILE_PREFIX,
     ) -> None:
         os.makedirs(checkpoint_dir, exist_ok=True)

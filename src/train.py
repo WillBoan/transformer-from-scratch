@@ -1,8 +1,9 @@
 from typing import Any
 from logging import Logger
 import os
-import math
+import json
 import time
+import math
 from contextlib import nullcontext
 
 import torch
@@ -39,6 +40,8 @@ class Trainer:
         to be saved with checkpoints.
     """
 
+    run_id: str
+    checkpoint_dir: str
     logger: Logger
     ctx: torch.autocast | nullcontext[None]
     scaler: torch.GradScaler
@@ -51,20 +54,31 @@ class Trainer:
     best_val_loss: float | None
     config_dict: dict[str, Any]
 
-    def __init__(self, resume: bool = True) -> None:
+    def __init__(self, resume_run_id: str | None = None) -> None:
         """
         Initializes the Trainer, setting up the model, optimizer, and data.
 
         Args:
-            resume (bool): If True, resume training from the latest checkpoint
-                if available; otherwise start from scratch. Defaults to True.
+            resume_run_id (str | None): If provided, resume training from this
+                specific run ID. Otherwise, start a new run.
         """
-        self.logger = setup_logging()
+        # --- Setup Run ID and Directories ---
+        if resume_run_id:
+            self.run_id = resume_run_id
+            self.checkpoint_dir = os.path.join(cfg.CHECKPOINT_PARENT_DIR, self.run_id)
+        else:
+            time_str = time.strftime("%Y-%m-%d_%H-%M-%S")
+            self.run_id = f"{time_str}_{cfg.RUN_NAME_PREFIX}"
+            self.checkpoint_dir = os.path.join(cfg.CHECKPOINT_PARENT_DIR, self.run_id)
+            os.makedirs(self.checkpoint_dir, exist_ok=True)
 
+        # --- Setup Logger ---
+        self.logger = setup_logging(self.checkpoint_dir)
+
+        # --- Set random seed for reproducibility ---
         torch.manual_seed(cfg.SEED)  # pyright: ignore[reportUnknownMemberType]
 
-        # --- Setup directories, device context, and scaler ---
-        os.makedirs(cfg.CHECKPOINT_DIR, exist_ok=True)
+        # --- Setup device context and scaler ---
         self.ctx = (
             torch.autocast(device_type="cuda", dtype=torch.float16)
             if cfg.DEVICE == "cuda"
@@ -77,13 +91,14 @@ class Trainer:
         self.scaler = torch.GradScaler(enabled=(cfg.DEVICE == "cuda"))
 
         # --- Initialize helpers ---
-        self.metrics_logger = MetricsLogger(cfg.TRAINING_LOG_FILE)
-        self.checkpoint_manager = CheckpointManager()
+        metrics_log_path = os.path.join(self.checkpoint_dir, "metrics.jsonl")
+        self.metrics_logger = MetricsLogger(metrics_log_path)
+        self.checkpoint_manager = CheckpointManager(self.checkpoint_dir)
 
-        # Initialize data manager
+        # --- Initialize data manager ---
         self.data_manager = DataManager()
 
-        # Initialize model
+        # --- Initialize model ---
         self.model = Transformer(
             vocab_size=self.data_manager.vocab_size,
             n_layer=cfg.N_LAYER,
@@ -107,19 +122,25 @@ class Trainer:
         self.best_val_loss: float | None = None
         self.config_dict = {k: v for k, v in vars(cfg).items() if k.isupper()}
 
+        # --- Save config snapshot for new runs ---
+        if not resume_run_id:
+            config_path = os.path.join(self.checkpoint_dir, "config.json")
+            with open(config_path, "w") as f:
+                json.dump(self.config_dict, f, indent=2)
+
         # --- Resume from checkpoint if available ---
-        if resume:
-            state: CheckpointState | None = self.checkpoint_manager.load("latest")
-            if state:
-                self.model.load_state_dict(state.model_state_dict)
-                self.optimizer.load_state_dict(state.optimizer_state_dict)
-                self.iter_num = state.iter_num
-                self.best_val_loss = state.best_val_loss
-                self.logger.info(
-                    f"Resumed from checkpoint at iteration {self.iter_num}"
-                )
-            else:
-                self.logger.info("No checkpoint found, starting from scratch.")
+        state: CheckpointState | None = self.checkpoint_manager.load("latest")
+        if state:
+            self.model.load_state_dict(state.model_state_dict)
+            self.optimizer.load_state_dict(state.optimizer_state_dict)
+            self.iter_num = state.iter_num
+            self.best_val_loss = state.best_val_loss
+            self.logger.info(
+                f"Resumed from checkpoint in run '{self.run_id}', "
+                f"at iteration {self.iter_num}"
+            )
+        else:
+            self.logger.info(f"Starting new run '{self.run_id}' from scratch.")
 
     def get_lr(self, it: int) -> float:
         """Get learning rate for a given iteration using cosine decay."""
@@ -254,5 +275,7 @@ class Trainer:
 
 
 if __name__ == "__main__":
-    trainer = Trainer(resume=True)
+    trainer = Trainer(
+        resume_run_id=None
+    )  # Set to a specific run ID to resume, or None to start fresh
     trainer.train()
