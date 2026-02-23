@@ -218,7 +218,12 @@ class Trainer:
         # Save latest checkpoint, and also best if improved. Update self.best_val_loss.
         self.best_val_loss = self.checkpoint_manager.save(state)
 
-    def _evaluate_and_checkpoint(self, start_time: float) -> None:
+    def _evaluate_and_checkpoint(
+        self,
+        start_time: float,
+        avg_grad_norm: float,
+        update_to_weight_ratio: float,
+    ) -> None:
         try:
             losses = self._estimate_loss()
             elapsed_time = time.time() - start_time
@@ -228,13 +233,19 @@ class Trainer:
                 f"val loss {losses['val']:.4f}"
             )
 
+            # Calculate cumulative tokens processed
+            tokens_processed = self.iter_num * cfg.BATCH_SIZE * cfg.BLOCK_SIZE
+
             # Log metrics (structured)
             entry = MetricEntry(
                 iter_num=self.iter_num,
+                time_ms=elapsed_time * 1000.0,
+                tokens_processed=tokens_processed,
                 train_loss=losses["train"],
                 val_loss=losses["val"],
                 lr=cfg.LEARNING_RATE,
-                time_ms=elapsed_time * 1000.0,
+                avg_grad_norm=avg_grad_norm,
+                update_to_weight_ratio=update_to_weight_ratio,
             )
             self.metrics_logger.log(entry)
 
@@ -245,8 +256,13 @@ class Trainer:
                 f"Failed to evaluate or save checkpoint at iter {self.iter_num}: {e}"
             )
 
-    def _train_step(self) -> tuple[float, float]:
-        """Performs a single training step and returns loss and grad norm."""
+    def _train_step(
+        self,
+        calc_update_ratio: bool = False,
+    ) -> tuple[float, float, float]:
+        """
+        Performs a single training step and returns loss, grad norm, and update ratio.
+        """
         lr = self.get_lr(self.iter_num)
         for param_group in self.optimizer.param_groups:
             param_group["lr"] = lr
@@ -263,25 +279,49 @@ class Trainer:
             self.model.parameters(), cfg.GRAD_CLIP
         )
 
+        # If requested, capture the weights before the optimizer step
+        update_ratio = 0.0
+        if calc_update_ratio:
+            target_param = self.model.lm_head.weight
+            param_before = target_param.detach().clone()
+
         # Step the optimizer and update the scaler
         self.scaler.step(self.optimizer)
         self.scaler.update()
 
+        # Calculate the update-to-weight ratio
+        if calc_update_ratio:
+            update = target_param.detach() - param_before
+            # Ratio of standard deviations is the standard metric for this
+            update_ratio = (update.std() / (param_before.std() + 1e-8)).item()
+
         # Zero gradients for the next step
         self.optimizer.zero_grad(set_to_none=True)
 
-        # Return the loss and grad norm for logging
-        return loss.item(), grad_norm.item()
+        # Return the loss, grad norm, and update ratio
+        return loss.item(), grad_norm.item(), update_ratio
 
     def train(self, max_iters: int = cfg.MAX_ITERS) -> None:
         """Runs the main training loop."""
         start_time = time.time()
         self.logger.info("--- Starting Training ---")
 
-        while self.iter_num < max_iters:
-            # Perform a training step
-            loss, grad_norm = self._train_step()
+        running_grad_norm = 0.0
+        steps_since_eval = 0
 
+        while self.iter_num < max_iters:
+            # Determine if this step will trigger an evaluation
+            is_eval_step = (self.iter_num + 1) % cfg.EVAL_INTERVAL == 0 or (
+                self.iter_num + 1
+            ) == max_iters
+
+            # Perform a training step
+            loss, grad_norm, update_ratio = self._train_step(
+                calc_update_ratio=is_eval_step
+            )
+
+            running_grad_norm += grad_norm
+            steps_since_eval += 1
             self.iter_num += 1
 
             # Log grad norm periodically
@@ -291,8 +331,13 @@ class Trainer:
                 )
 
             # Evaluate loss and save checkpoint periodically
-            if self.iter_num % cfg.EVAL_INTERVAL == 0 or self.iter_num == max_iters:
-                self._evaluate_and_checkpoint(start_time)
+            if is_eval_step:
+                avg_grad_norm = running_grad_norm / steps_since_eval
+                self._evaluate_and_checkpoint(start_time, avg_grad_norm, update_ratio)
+
+                # Reset accumulators
+                running_grad_norm = 0.0
+                steps_since_eval = 0
 
         self.logger.info("--- Training Complete ---")
         if self.best_val_loss:

@@ -9,19 +9,26 @@ class MetricEntry:
     """
     Structured representation of a single metric entry.
 
-    Args:
+    Properties:
     - iter_num: The training iteration number at which the metrics were recorded.
+    - time_ms: The time taken for the evaluation step, in milliseconds.
+    - tokens_processed: Cumulative number of tokens seen by the model.
     - train_loss: The training loss at this iteration.
     - val_loss: The validation loss at this iteration.
     - lr: The learning rate at this iteration.
-    - time_ms: The time taken for the evaluation step, in milliseconds.
+    - avg_grad_norm: Average gradient norm over the evaluation interval.
+    - update_to_weight_ratio: Ratio of update magnitude to weight magnitude,
+        for the lm_head.
     """
 
     iter_num: int
+    time_ms: float
+    tokens_processed: int
     train_loss: float
     val_loss: float
     lr: float
-    time_ms: float
+    avg_grad_norm: float
+    update_to_weight_ratio: float
 
 
 class MetricsLogger:
