@@ -325,6 +325,10 @@ class Transformer(nn.Module):
             nn.init.ones_(module.weight)
             nn.init.zeros_(module.bias)
 
+        # TODO: Add a special flag to the projection layers
+        # (e.g., self.proj.NANOGPT_SCALE_INIT = 1) and update _init_weights to look for
+        # it and scale the standard deviation accordingly.
+
     def configure_optimizer(
         self,
         weight_decay: float,
