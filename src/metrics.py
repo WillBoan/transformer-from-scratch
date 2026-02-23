@@ -16,6 +16,7 @@ class MetricEntry:
     - train_loss: The training loss at this iteration.
     - val_loss: The validation loss at this iteration.
     - lr: The learning rate at this iteration.
+    - grad_norm: The gradient norm at this iteration.
     - avg_grad_norm: Average gradient norm over the evaluation interval.
     - update_to_weight_ratio: Ratio of update magnitude to weight magnitude,
         for the lm_head.
@@ -27,6 +28,7 @@ class MetricEntry:
     train_loss: float
     val_loss: float
     lr: float
+    grad_norm: float
     avg_grad_norm: float
     update_to_weight_ratio: float
 

@@ -78,9 +78,13 @@ class TrainingDashboardPlotter:
 
         # --- Panel 4: Gradient Norm ---
         ax = axes[1, 0]
-        ax.plot(x, df["avg_grad_norm"], color="teal", alpha=0.8)
-        ax.set_title("Average Gradient Norm")
+        ax.plot(
+            x, df["avg_grad_norm"], color="teal", alpha=0.8, label="Average Grad Norm"
+        )
+        ax.plot(x, df["grad_norm"], color="blue", alpha=0.5, label="Current Grad Norm")
+        ax.set_title("Gradient Norm")
         ax.set_ylabel("L2 Norm")
+        ax.legend()
 
         # --- Panel 5: Update-to-Weight Ratio ---
         ax = axes[1, 1]

@@ -221,6 +221,7 @@ class Trainer:
     def _evaluate_and_checkpoint(
         self,
         start_time: float,
+        grad_norm: float,
         avg_grad_norm: float,
         update_to_weight_ratio: float,
     ) -> None:
@@ -244,6 +245,7 @@ class Trainer:
                 train_loss=losses["train"],
                 val_loss=losses["val"],
                 lr=cfg.LEARNING_RATE,
+                grad_norm=grad_norm,
                 avg_grad_norm=avg_grad_norm,
                 update_to_weight_ratio=update_to_weight_ratio,
             )
@@ -333,7 +335,12 @@ class Trainer:
             # Evaluate loss and save checkpoint periodically
             if is_eval_step:
                 avg_grad_norm = running_grad_norm / steps_since_eval
-                self._evaluate_and_checkpoint(start_time, avg_grad_norm, update_ratio)
+                self._evaluate_and_checkpoint(
+                    start_time,
+                    grad_norm,
+                    avg_grad_norm,
+                    update_ratio,
+                )
 
                 # Reset accumulators
                 running_grad_norm = 0.0
