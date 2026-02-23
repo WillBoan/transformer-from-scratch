@@ -1,15 +1,10 @@
-# pyright: reportUnknownMemberType=false
 import os
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-# Define the parent directory for checkpoints relative to this script's location
-# scripts/../checkpoints -> checkpoints/
-CHECKPOINT_PARENT_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "checkpoints")
-)
+from .utils import get_run_dir, get_latest_run_dir
 
 
 class LossCurvePlotter:
@@ -28,54 +23,19 @@ class LossCurvePlotter:
         Raises:
             FileNotFoundError: If the run directory or metrics file does not exist.
         """
-        if run_id is None:
-            self.find_latest_run()
-        else:
+        if run_id:
             self.run_id = run_id
-            self.run_dir = os.path.join(CHECKPOINT_PARENT_DIR, self.run_id)
-            self.metrics_file = os.path.join(self.run_dir, "metrics.jsonl")
-            self.output_file = os.path.join(self.run_dir, "loss_curve.png")
+            self.run_dir = get_run_dir(run_id)
+        else:
+            self.run_dir, self.run_id = get_latest_run_dir()
+
+        self.metrics_file = os.path.join(self.run_dir, "metrics.jsonl")
+        self.output_file = os.path.join(self.run_dir, "loss_curve.png")
 
         if not os.path.isdir(self.run_dir):
             raise FileNotFoundError(f"Run directory not found: {self.run_dir}")
         if not os.path.exists(self.metrics_file):
             raise FileNotFoundError(f"Metrics file not found: {self.metrics_file}")
-
-    def find_latest_run(self) -> None:
-        """
-        Finds the latest run directory based on timestamp in the name.
-
-        Raises:
-            FileNotFoundError: If no valid run directories are found.
-        """
-        if not os.path.isdir(CHECKPOINT_PARENT_DIR):
-            raise FileNotFoundError(
-                f"Checkpoints parent directory not found: {CHECKPOINT_PARENT_DIR}"
-            )
-
-        # List all subdirectories and filter those that match the expected pattern
-        subdirs = [
-            d
-            for d in os.listdir(CHECKPOINT_PARENT_DIR)
-            if os.path.isdir(os.path.join(CHECKPOINT_PARENT_DIR, d)) and "_" in d
-        ]
-
-        if not subdirs:
-            raise FileNotFoundError("No valid run directories found.")
-
-        # Sort by timestamp extracted from the directory name
-        # (assuming format 'YYYY-MM-DD_HH-MM-SS_...')
-        subdirs.sort(
-            key=lambda x: x.split("_")[0] + "_" + x.split("_")[1], reverse=True
-        )
-
-        # Take the latest one
-        self.run_id = subdirs[0]
-        self.run_dir = os.path.join(CHECKPOINT_PARENT_DIR, self.run_id)
-        self.metrics_file = os.path.join(self.run_dir, "metrics.jsonl")
-        self.output_file = os.path.join(self.run_dir, "loss_curve.png")
-
-        print(f"Latest run found: {self.run_id}")
 
     def plot(self) -> None:
         """
@@ -124,7 +84,7 @@ if __name__ == "__main__":
         nargs="?",
         default=None,
         help=(
-            "The ID of the run to plot (e.g., '2026-02-20_22-11-06_shakespeare_v1'). "
+            "The ID of the run (e.g., '2026-02-20_22-11-06_shakespeare_v1'). "
             "If not provided, the latest run will be used."
         ),
     )
