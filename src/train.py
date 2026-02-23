@@ -19,7 +19,7 @@ from checkpoint_manager import CheckpointManager, CheckpointState
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from scripts.plot import LossCurvePlotter  # noqa E402
+from scripts.plot import TrainingDashboardPlotter  # noqa E402
 
 
 class Trainer:
@@ -343,8 +343,8 @@ class Trainer:
         if self.best_val_loss:
             self.logger.info(f"Final best validation loss: {self.best_val_loss:.4f}")
 
-        # Plot the loss curves for the training run
-        plotter = LossCurvePlotter(run_id=self.run_id)
+        # Plot the training dashboard for the training run
+        plotter = TrainingDashboardPlotter(run_id=self.run_id)
         plotter.plot()
 
 
