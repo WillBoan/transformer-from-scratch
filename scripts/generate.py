@@ -1,19 +1,19 @@
 from typing import Any, Literal
 import os
-
-# import sys
+import sys
 import json
 import argparse
 import torch
 
 # Add the src directory to the Python path
-# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-import config as current_cfg
-from model import Transformer
-from tokenizer import CharTokenizer
-from checkpoint_manager import CheckpointManager
-from .utils import get_run_dir, get_latest_run_dir
+import config as current_cfg  # noqa E402
+from model import Transformer  # noqa E402
+from tokenizer import CharTokenizer  # noqa E402
+from checkpoint_manager import CheckpointManager  # noqa E402
+from scripts.utils import get_run_dir, get_latest_run_dir  # noqa E402
 
 
 class TextGenerator:

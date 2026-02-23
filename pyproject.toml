@@ -3,4 +3,4 @@ name = "transformer_from_scratch"
 version = "0.1.0"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "scripts"]
