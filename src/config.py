@@ -10,14 +10,14 @@ import torch
 
 
 # --- Run Details ---
-RUN_NAME_PREFIX: str = "shakespeare_v1"
+RUN_NAME_PREFIX: str = "shakespeare_baseline_L4_E64"
 SEED: int = 1337
 
 # --- Model Parameters ---
-BLOCK_SIZE: int = 8  # Maximum context length for predictions
-N_EMBD: int = 32  # Embedding dimension
+BLOCK_SIZE: int = 64  # Maximum context length for predictions
+N_EMBD: int = 64  # Embedding dimension
 N_HEAD: int = 4  # Number of attention heads
-N_LAYER: int = 2  # Number of transformer blocks
+N_LAYER: int = 4  # Number of transformer blocks
 DROPOUT: float = 0.0  # Dropout rate (0 means no dropout)
 
 # --- Training Parameters ---
@@ -25,8 +25,10 @@ BATCH_SIZE: int = 64  # How many independent sequences to process in parallel
 LEARNING_RATE: float = 3e-4  # Learning rate for the optimizer
 MIN_LR: float = 3e-5  # Minimum learning rate after decay
 WEIGHT_DECAY: float = 1e-1  # Weight decay for regularization
-MAX_ITERS: int = 5000  # Total number of training iterations
-LR_DECAY_ITERS: int = 5000  # No. iters to decay learning rate (should be <= MAX_ITERS)
+MAX_ITERS: int = 10000  # Total number of training iterations
+LR_DECAY_ITERS: int = (
+    MAX_ITERS  # No. iters to decay learning rate (should be <= MAX_ITERS)
+)
 WARMUP_ITERS: int = 0  # No. iters for learning rate warmup (should be <= MAX_ITERS)
 USE_COSINE_LR: bool = True  # Whether to use cosine learning rate decay
 EVAL_INTERVAL: int = 500  # How often to evaluate the model on train and val sets
