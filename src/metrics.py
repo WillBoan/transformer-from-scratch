@@ -2,7 +2,6 @@ import os
 import threading
 import json
 from dataclasses import dataclass
-import config as cfg
 
 
 @dataclass
@@ -31,8 +30,8 @@ class MetricsLogger:
     Use: metrics.log(MetricEntry(iter=i, train_loss=..., ...))
     """
 
-    def __init__(self, path: str | None = None) -> None:
-        self.path = path or cfg.TRAINING_LOG_FILE
+    def __init__(self, path: str) -> None:
+        self.path = path
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
         self._lock = threading.Lock()
         # open lazily per write to be robust to crashes and multiprocess use
