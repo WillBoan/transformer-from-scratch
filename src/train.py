@@ -14,6 +14,7 @@ from utils import DataManager
 from logging_config import setup_logging
 from metrics import MetricsLogger, MetricEntry
 from checkpoint_manager import CheckpointManager, CheckpointState
+from ..scripts.plot import LossCurvePlotter
 
 
 class Trainer:
@@ -272,6 +273,10 @@ class Trainer:
         self.logger.info("--- Training Complete ---")
         if self.best_val_loss:
             self.logger.info(f"Final best validation loss: {self.best_val_loss:.4f}")
+
+        # Plot the loss curves for the training run
+        plotter = LossCurvePlotter(run_id=self.run_id)
+        plotter.plot()
 
 
 if __name__ == "__main__":
