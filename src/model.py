@@ -397,7 +397,12 @@ class Transformer(nn.Module):
 
         return logits, loss
 
-    def generate(self, idx: Tensor, max_new_tokens: int) -> Tensor:
+    def generate(
+        self,
+        idx: Tensor,
+        max_new_tokens: int,
+        temperature: float = 1.0,
+    ) -> Tensor:
         """
         Generate new tokens based on a given context.
 
@@ -405,6 +410,8 @@ class Transformer(nn.Module):
             idx (Tensor): The initial context, an input tensor of token indices.
                 - Shape: (B, T)
             max_new_tokens (int): The maximum number of new tokens to generate.
+            temperature (float): The sampling temperature. Higher values lead to more
+                random samples, while lower values make the model more deterministic.
 
         Returns:
             Tensor: The generated sequence of token indices.
@@ -421,6 +428,9 @@ class Transformer(nn.Module):
 
                 # Focus only on the last time step
                 logits = logits[:, -1, :]  # (B, vocab_size)
+
+                # Apply temperature scaling to the logits
+                logits = logits / temperature
 
                 # Apply softmax to get probabilities and sample from the distribution
                 probs = F.softmax(logits, dim=-1)  # (B, vocab_size)

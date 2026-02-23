@@ -98,7 +98,7 @@ class TextGenerator:
             out_idx = self.model.generate(
                 idx,
                 max_new_tokens=max_new_tokens,
-                # temperature=temperature,
+                temperature=temperature,
             )
 
         # Decode
