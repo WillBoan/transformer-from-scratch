@@ -1,5 +1,6 @@
 # Local development files
 .vscode/
+.github/prompts/
 .idea/
 _working_docs/
 .DS_Store
