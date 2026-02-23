@@ -2,75 +2,54 @@ from typing import Literal
 import torch
 from torch import Tensor
 from config import BATCH_SIZE, BLOCK_SIZE, DEVICE, DATASET_PATH
+from tokenizer import CharTokenizer
 
 
 class DataManager:
     """
-    DataManager for loading, tokenizing, and batching the dataset.
+    DataManager for loading and batching the dataset.
     """
 
-    file_path: str
+    dataset_path: str
     text: str
-    vocab_size: int
-    _stoi: dict[str, int]  # Mapping from characters to integers, for encoding
-    _itos: dict[int, str]  # Mapping from integers to characters, for decoding
+    tokenizer: CharTokenizer
     train_data: Tensor
     val_data: Tensor
 
-    def __init__(self, file_path: str = DATASET_PATH) -> None:
+    def __init__(
+        self,
+        tokenizer: CharTokenizer,
+        dataset_path: str = DATASET_PATH,
+    ) -> None:
         """
         Initializes the data manager by loading and processing the dataset.
 
         Args:
-            file_path (str): The path to the dataset file.
+            tokenizer (CharTokenizer): The tokenizer instance to use for encoding.
+            dataset_path (str): The path to the dataset file.
         """
-        self.file_path = file_path
+        self.tokenizer = tokenizer
+        self.dataset_path = dataset_path
 
         # --- Data Loading ---
-        self.load_data(self.file_path)
-
-        # --- Tokenizer ---
-        self.run_tokenizer(self.text)
+        self.load_data(self.dataset_path)
 
         # --- Data Splitting ---
         self.split_data(self.text)
 
-    def load_data(self, file_path: str) -> None:
+    def load_data(self, dataset_path: str) -> None:
         """Loads the dataset from the specified file path."""
         # NOTE: This loads the entire dataset into memory
         # TODO: For larger datasets, consider streaming, chunking, or memory-mapping
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(dataset_path, "r", encoding="utf-8") as f:
             self.text = f.read()
-
-    def run_tokenizer(self, text: str) -> None:
-        """
-        Initializes the tokenizer.
-
-        Creates:
-        - A sorted list of unique characters in the text.
-        - `vocab_size`: The number of unique characters.
-        - `_stoi`: A mapping from characters to integers (stoi), for encoding.
-        - `_itos`: A mapping from integers to characters (itos), for decoding.
-        """
-        chars = sorted(list(set(text)))
-        self.vocab_size = len(chars)
-        self._stoi: dict[str, int] = {ch: i for i, ch in enumerate(chars)}
-        self._itos: dict[int, str] = {i: ch for i, ch in enumerate(chars)}
 
     def split_data(self, text: str, split_ratio: float = 0.9) -> None:
         """Split the data into training and validation sets."""
-        data = torch.tensor(self.encode(text), dtype=torch.long)
+        data = torch.tensor(self.tokenizer.encode(text), dtype=torch.long)
         n = int(split_ratio * len(data))
         self.train_data = data[:n]
         self.val_data = data[n:]
-
-    def encode(self, s: str) -> list[int]:
-        """Encode a string into a list of integers."""
-        return [self._stoi[c] for c in s]
-
-    def decode(self, int_list: list[int]) -> str:
-        """Decode a list of integers into a string."""
-        return "".join([self._itos[i] for i in int_list])
 
     def get_batch(
         self,

@@ -11,10 +11,15 @@ import torch
 import config as cfg
 from model import Transformer
 from utils import DataManager
+from tokenizer import CharTokenizer
 from logging_config import setup_logging
 from metrics import MetricsLogger, MetricEntry
 from checkpoint_manager import CheckpointManager, CheckpointState
-from ..scripts.plot import LossCurvePlotter
+
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from scripts.plot import LossCurvePlotter  # noqa E402
 
 
 class Trainer:
@@ -30,6 +35,7 @@ class Trainer:
         metrics.
     - checkpoint_manager: An instance of CheckpointManager for saving and loading model
         checkpoints.
+    - tokenizer: An instance of CharTokenizer for encoding and decoding text.
     - data_manager: An instance of DataManager for handling data loading,
         tokenization, and batching.
     - model: The Transformer model being trained.
@@ -48,6 +54,7 @@ class Trainer:
     scaler: torch.GradScaler
     metrics_logger: MetricsLogger
     checkpoint_manager: CheckpointManager
+    tokenizer: CharTokenizer
     data_manager: DataManager
     model: Transformer
     optimizer: torch.optim.Optimizer
@@ -96,12 +103,29 @@ class Trainer:
         self.metrics_logger = MetricsLogger(metrics_log_path)
         self.checkpoint_manager = CheckpointManager(self.checkpoint_dir)
 
+        # --- Initialize Tokenizer ---
+        self.tokenizer = CharTokenizer()
+        vocab_path = os.path.join(self.checkpoint_dir, "vocab.json")
+
+        if resume_run_id:
+            self.logger.info(f"Loading existing vocabulary from {vocab_path}")
+            self.tokenizer.load(vocab_path)
+        else:
+            self.logger.info("Building new vocabulary from dataset...")
+            with open(cfg.DATASET_PATH, "r", encoding="utf-8") as f:
+                text = f.read()
+            self.tokenizer.fit(text)
+            self.tokenizer.save(vocab_path)
+
         # --- Initialize data manager ---
-        self.data_manager = DataManager()
+        self.data_manager = DataManager(
+            tokenizer=self.tokenizer,
+            dataset_path=cfg.DATASET_PATH,
+        )
 
         # --- Initialize model ---
         self.model = Transformer(
-            vocab_size=self.data_manager.vocab_size,
+            vocab_size=self.tokenizer.vocab_size,
             n_layer=cfg.N_LAYER,
             n_head=cfg.N_HEAD,
             block_size=cfg.BLOCK_SIZE,
