@@ -276,9 +276,13 @@ class Trainer:
         # Backpropagation with gradient scaling for mixed precision
         self.scaler.scale(loss).backward()  # pyright: ignore[reportUnknownMemberType]
 
-        # Gradient clipping to prevent exploding gradients
+        # Unscale gradients
+        self.scaler.unscale_(self.optimizer)
+
+        # Gradient clipping
         grad_norm = torch.nn.utils.clip_grad_norm_(
-            self.model.parameters(), cfg.GRAD_CLIP
+            self.model.parameters(),
+            cfg.GRAD_CLIP,
         )
 
         # If requested, capture the weights before the optimizer step
