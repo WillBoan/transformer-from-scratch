@@ -128,7 +128,10 @@ class Trainer:
             self.model.load_state_dict(state.model_state_dict)
             self.optimizer.load_state_dict(state.optimizer_state_dict)
             self.iter_num = state.iter_num
-            self.best_val_loss = state.best_val_loss
+
+            best_state = self.checkpoint_manager.load("best")
+            self.best_val_loss = best_state.val_loss if best_state else float("inf")
+
             self.logger.info(
                 f"Resumed from checkpoint in run '{self.run_name}', "
                 f"at iteration {self.iter_num}"
@@ -182,12 +185,11 @@ class Trainer:
             model_state_dict=self.model.state_dict(),
             optimizer_state_dict=self.optimizer.state_dict(),
             iter_num=iter_num,
-            latest_val_loss=latest_val_loss,
-            best_val_loss=self.best_val_loss,
+            val_loss=latest_val_loss,
             config=self.cfg.to_dict(),
         )
         # Save latest checkpoint, and also best if improved. Update self.best_val_loss.
-        self.best_val_loss = self.checkpoint_manager.save(state)
+        self.best_val_loss = self.checkpoint_manager.save(state, self.best_val_loss)
 
     def _log_metrics(self, entry: MetricEntry) -> None:
         """Log metrics to all configured loggers."""
