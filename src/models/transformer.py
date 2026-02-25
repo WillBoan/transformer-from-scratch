@@ -7,12 +7,11 @@ from torch import Tensor
 import torch.nn as nn
 from torch.nn import functional as F
 
-from config import BLOCK_SIZE, N_EMBD, DROPOUT
-
 
 class Head(nn.Module):
     """One head of self-attention"""
 
+    head_size: int
     key: nn.Linear
     query: nn.Linear
     value: nn.Linear
@@ -26,8 +25,6 @@ class Head(nn.Module):
     ) -> None:
         super().__init__()
         self.head_size: Final[int] = head_size
-        self.n_embd: Final[int] = n_embd
-        self.registered_block_size: Final[int] = block_size
 
         self.key = nn.Linear(n_embd, head_size, bias=False)
         self.query = nn.Linear(n_embd, head_size, bias=False)
@@ -77,6 +74,7 @@ class MultiHeadAttention(nn.Module):
     between tokens.
     """
 
+    head_size: int
     heads: nn.ModuleList
     proj: nn.Linear
 
@@ -85,7 +83,7 @@ class MultiHeadAttention(nn.Module):
         n_head: int,
         block_size: int,
         n_embd: int,
-        dropout: float = DROPOUT,
+        dropout: float,
     ) -> None:
         super().__init__()
 
@@ -93,9 +91,7 @@ class MultiHeadAttention(nn.Module):
         assert (
             n_embd % n_head == 0
         ), "Embedding dimension must be divisible by number of heads"
-        self.n_embd: Final[int] = n_embd
         self.head_size: Final[int] = n_embd // n_head
-        self.n_head: Final[int] = n_head
 
         # Instantiate the specified number of heads and store them in a ModuleList
         self.heads = nn.ModuleList(
@@ -143,7 +139,7 @@ class FeedForward(nn.Module):
     def __init__(
         self,
         n_embd: int,
-        dropout: float = DROPOUT,
+        dropout: float,
     ) -> None:
         super().__init__()
         self.net = nn.Sequential(
@@ -216,7 +212,7 @@ class Block(nn.Module):
         n_head: int,
         block_size: int,
         n_embd: int,
-        dropout: float = DROPOUT,
+        dropout: float,
     ) -> None:
         super().__init__()
         self.ln1 = nn.LayerNorm(n_embd)
@@ -253,10 +249,13 @@ class Transformer(nn.Module):
     The Transformer model consists of an embedding layer for tokens and positions,
     followed by a stack of Transformer blocks, and finally a linear layer to
     project the output to the vocabulary size for language modeling.
-
-
-
     """
+
+    block_size: int
+    n_embd: int
+    n_head: int
+    n_layer: int
+    dropout: float
 
     token_embedding_table: nn.Embedding
     position_embedding_table: nn.Embedding
@@ -267,39 +266,38 @@ class Transformer(nn.Module):
     def __init__(
         self,
         vocab_size: int,
-        n_layer: int,
+        block_size: int,
+        n_embd: int,
         n_head: int,
-        block_size: int | None = None,
-        n_embd: int | None = None,
-        dropout: float | None = None,
+        n_layer: int,
+        dropout: float,
     ) -> None:
         super().__init__()
 
-        # Set model parameters, using defaults if not provided
-        self.block_size: Final[int] = (
-            block_size if block_size is not None else BLOCK_SIZE
-        )
-        self.n_embd: Final[int] = n_embd if n_embd is not None else N_EMBD
-        self.dropout: Final[float] = dropout if dropout is not None else DROPOUT
+        # Set model parameters
+        self.vocab_size: Final[int] = vocab_size
+        self.block_size: Final[int] = block_size
+        self.n_embd: Final[int] = n_embd
         self.n_head: Final[int] = n_head
         self.n_layer: Final[int] = n_layer
+        self.dropout: Final[float] = dropout
 
         # Layers
-        self.token_embedding_table = nn.Embedding(vocab_size, self.n_embd)
+        self.token_embedding_table = nn.Embedding(self.vocab_size, self.n_embd)
         self.position_embedding_table = nn.Embedding(self.block_size, self.n_embd)
         self.blocks = nn.Sequential(
             *[
                 Block(
-                    n_head=n_head,
+                    n_head=self.n_head,
                     n_embd=self.n_embd,
                     block_size=self.block_size,
                     dropout=self.dropout,
                 )
-                for _ in range(n_layer)
+                for _ in range(self.n_layer)
             ]
         )
         self.ln_f = nn.LayerNorm(self.n_embd)  # final layer norm
-        self.lm_head = nn.Linear(self.n_embd, vocab_size)
+        self.lm_head = nn.Linear(self.n_embd, self.vocab_size)
 
         # Initialize weights
         self.apply(self._init_weights)
