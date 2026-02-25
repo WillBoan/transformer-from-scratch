@@ -33,6 +33,7 @@ class Trainer:
         Initializes the Trainer based on the provided Hydra configuration.
         """
         self.cfg = cfg
+        self.cfg_dict = TransformerConfig.to_dict(self.cfg)
         self.output_dir: str
         self.logger: Logger
         self.wandb_logger: WandbLogger | None = None
@@ -52,7 +53,7 @@ class Trainer:
                 project=self.cfg.experiment.project,
                 group=self.cfg.experiment.group,
                 run_name=self.run_name,
-                config_dict=self.cfg.to_dict(),
+                config_dict=self.cfg_dict,
                 mode=self.cfg.tracking.mode,
             )
 
@@ -246,7 +247,7 @@ class Trainer:
             optimizer_state_dict=self.optimizer.state_dict(),
             iter_num=iter_num,
             val_loss=latest_val_loss,
-            config=self.cfg.to_dict(),
+            config=self.cfg_dict,
         )
         # Save latest checkpoint, and also best if improved. Update self.best_val_loss.
         self.best_val_loss = self.checkpoint_manager.save(state, self.best_val_loss)
@@ -329,7 +330,7 @@ class Trainer:
 
     def _train_step(
         self,
-        calc_update_ratio: bool = False,
+        calc_update_ratio: bool = True,
     ) -> tuple[float, float, float]:
         """
         Performs a single training step and returns loss, grad norm, and update ratio.
@@ -359,6 +360,7 @@ class Trainer:
         )
 
         # If requested, capture the weights before the optimizer step
+        update_ratio = 0.0
         if calc_update_ratio:
             target_param = self.model.lm_head.weight
             param_before = target_param.detach().clone()

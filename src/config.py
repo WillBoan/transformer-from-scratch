@@ -74,8 +74,12 @@ class TransformerConfig:
     experiment: ExperimentConfig
     tracking: TrackingConfig
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert the dataclass configuration to a dictionary."""
-        raw_config = OmegaConf.to_container(self, resolve=True)
+    @staticmethod
+    def to_dict(cfg: "TransformerConfig") -> dict[str, Any]:
+        """
+        A static helper method to convert a structured config object (like the one
+        from Hydra) into a plain dictionary.
+        """
+        raw_config = OmegaConf.to_container(cfg, resolve=True)
         config_dict = cast(dict[str, Any], raw_config)
         return config_dict
