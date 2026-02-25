@@ -5,7 +5,6 @@ from contextlib import nullcontext
 from logging import Logger
 
 import torch
-from omegaconf import OmegaConf
 
 from src.config import TransformerConfig
 from src.models.transformer import Transformer
@@ -47,8 +46,11 @@ class Trainer:
         # --- Setup W&B Logger ---
         if self.cfg.tracking.mode != "disabled":
             self.wandb_logger = WandbLogger(
+                project=self.cfg.experiment.project,
+                group=self.cfg.experiment.group,
                 run_name=self.run_name,
-                config=self.cfg,
+                config_dict=self.cfg.to_dict(),
+                mode=self.cfg.tracking.mode,
             )
 
         # --- Set random seed for reproducibility ---
@@ -176,16 +178,13 @@ class Trainer:
         return out
 
     def _save_checkpoint(self, iter_num: int, latest_val_loss: float) -> None:
-        config_dict = OmegaConf.to_container(self.cfg, resolve=True)
-        assert isinstance(config_dict, dict)  # for type checker
-
         state = CheckpointState(
             model_state_dict=self.model.state_dict(),
             optimizer_state_dict=self.optimizer.state_dict(),
             iter_num=iter_num,
             latest_val_loss=latest_val_loss,
             best_val_loss=self.best_val_loss,
-            config=config_dict,
+            config=self.cfg.to_dict(),
         )
         # Save latest checkpoint, and also best if improved. Update self.best_val_loss.
         self.best_val_loss = self.checkpoint_manager.save(state)

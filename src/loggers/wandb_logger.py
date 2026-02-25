@@ -2,12 +2,9 @@
 Weights & Biases logger integration.
 """
 
-from typing import Any, Literal, cast
+from typing import Any, Literal
 import wandb
-from omegaconf import DictConfig, OmegaConf
-
 from .metric_entry import MetricEntry
-from src.config import TransformerConfig
 
 
 class WandbLogger:
@@ -16,7 +13,7 @@ class WandbLogger:
         project: str,
         group: str,
         run_name: str,
-        config: DictConfig | TransformerConfig,
+        config_dict: dict[str, Any],
         mode: Literal["online", "offline", "disabled"],
     ) -> None:
         """
@@ -26,12 +23,9 @@ class WandbLogger:
             project: Name of the W&B project.
             group: Name of the W&B group.
             run_name: Name for this specific run.
-            config: Hydra configuration object to log as hyperparameters.
+            config_dict: Configuration dictionary to log as hyperparameters.
             mode: W&B mode, can be "online", "offline", or "disabled".
         """
-        raw_config = OmegaConf.to_container(config, resolve=True)
-        config_dict = cast(dict[str, Any], raw_config)
-
         self.run = wandb.init(
             project=project,
             group=group,

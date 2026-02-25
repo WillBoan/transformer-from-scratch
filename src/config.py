@@ -6,8 +6,9 @@ instantiated and validated by Hydra. It ensures type safety and provides a clear
 schema for all configurable parameters.
 """
 
-from typing import Literal
+from typing import Any, Literal, cast
 from dataclasses import dataclass
+from omegaconf import OmegaConf
 from src.utils.device_type import DeviceTypeConfig
 
 
@@ -68,3 +69,9 @@ class TransformerConfig:
     training: TrainingConfig
     experiment: ExperimentConfig
     tracking: TrackingConfig
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert the dataclass configuration to a dictionary."""
+        raw_config = OmegaConf.to_container(self, resolve=True)
+        config_dict = cast(dict[str, Any], raw_config)
+        return config_dict
