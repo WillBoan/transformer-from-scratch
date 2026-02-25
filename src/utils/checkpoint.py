@@ -2,6 +2,8 @@ from typing import Any, Literal, Final
 import os
 from dataclasses import dataclass
 import torch
+import wandb
+from src.config import TransformerConfig
 
 
 @dataclass
@@ -34,14 +36,17 @@ class CheckpointManager:
     def __init__(
         self,
         output_dir: str,
+        cfg: TransformerConfig,
+        wandb_is_enabled: bool,
     ) -> None:
         """
         Args:
             output_dir: The directory where checkpoints will be saved, typically the
                         Hydra run directory provided by os.getcwd().
         """
-        os.makedirs(output_dir, exist_ok=True)
         self.output_dir = output_dir
+        self.cfg = cfg
+        self.wandb_is_enabled = wandb_is_enabled
 
     def _get_checkpoint_path(
         self,
@@ -91,6 +96,9 @@ class CheckpointManager:
 
         self._save(state, checkpoint_type="latest")
 
+        if self.wandb_is_enabled:
+            self._log_wandb_artifact(state, is_best)
+
         return new_best_val_loss
 
     def load(
@@ -102,3 +110,21 @@ class CheckpointManager:
             return None
         state_dict = torch.load(path, map_location="cpu")
         return CheckpointState(**state_dict)
+
+    def _log_wandb_artifact(
+        self,
+        state: CheckpointState,
+        is_best: bool,
+    ) -> None:
+        artifact = wandb.Artifact(
+            name=f"{self.cfg.experiment.project}-checkpoint",
+            type="model",
+            metadata=state.config,
+        )
+        artifact.add_file(self._get_checkpoint_path("latest"), name="ckpt.pt")
+
+        aliases = ["latest", f"iter_{state.iter_num}"]
+        if is_best:
+            aliases.append("best")
+
+        wandb.log_artifact(artifact, aliases=aliases)

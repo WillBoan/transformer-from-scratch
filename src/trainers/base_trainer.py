@@ -68,7 +68,11 @@ class Trainer:
         # --- Initialize helpers ---
         metrics_log_path = os.path.join(self.output_dir, "metrics.jsonl")
         self.json_logger = JsonLogger(metrics_log_path)
-        self.checkpoint_manager = CheckpointManager(self.output_dir)
+        self.checkpoint_manager = CheckpointManager(
+            self.output_dir,
+            self.cfg,
+            wandb_is_enabled=(self.wandb_logger is not None),
+        )
 
         # --- Initialize Tokenizer & Data ---
         self.tokenizer = self._init_tokenizer()
