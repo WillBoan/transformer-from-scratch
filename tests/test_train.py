@@ -4,7 +4,7 @@ import pytest
 
 # import shutil
 
-from train import Trainer
+from trainers.base_trainer import Trainer
 import config as cfg
 
 

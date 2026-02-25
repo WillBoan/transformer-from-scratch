@@ -1,0 +1,40 @@
+# @package _global_
+
+# Default values for a single run.
+# These can be overridden via the command line.
+# e.g., python train.py model.n_layer=8 training.learning_rate=1e-3
+
+defaults:
+  - tracking: wandb # Specifies which tracking config to use. Can be 'wandb' or 'none'.
+  - _self_
+
+system:
+  seed: 1337
+  device: "auto"  # "auto", "cuda", "mps", or "cpu"
+
+data:
+  dataset_path: "data/tinyshakespeare/input.txt"
+  batch_size: 64
+
+model:
+  block_size: 64
+  n_embd: 64
+  n_head: 4
+  n_layer: 4
+  dropout: 0.0
+
+training:
+  learning_rate: 3e-4
+  min_lr: 3e-5
+  weight_decay: 1e-1
+  max_iters: 10000
+  lr_decay_iters: 10000
+  warmup_iters: 0
+  use_cosine_lr: true
+  grad_clip: 1.0
+  eval_interval: 500
+  eval_iters: 200
+
+experiment:
+  name: "shakespeare_transformer" # Base name for the experiment group
+  log_interval: 100

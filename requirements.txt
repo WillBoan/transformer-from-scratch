@@ -1,4 +1,6 @@
 torch
+hydra-core
+wandb
 numpy
 pandas
 matplotlib

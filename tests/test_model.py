@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 import torch.nn as nn
-from model import Head, MultiHeadAttention, FeedForward, Block, Transformer
+from models.transformer import Head, MultiHeadAttention, FeedForward, Block, Transformer
 
 
 torch.manual_seed(0)  # pyright: ignore[reportUnknownMemberType]

@@ -2,7 +2,7 @@ from typing import Literal
 import torch
 from torch import Tensor
 from config import BATCH_SIZE, BLOCK_SIZE, DEVICE, DATASET_PATH
-from tokenizer import CharTokenizer
+from utils.tokenizer import CharTokenizer
 
 
 class DataManager:

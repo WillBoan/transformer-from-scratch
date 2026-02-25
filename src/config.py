@@ -1,48 +1,69 @@
 """
-Configuration constants.
+Configuration definitions using dataclasses.
 
-This module centralizes model and training hyperparameters so they can be
-imported from other modules. Values are defined as module-level constants and
-are intentionally lightweight (no runtime logic beyond device selection).
+This module defines the structured configuration for the project, which is
+instantiated and validated by Hydra. It ensures type safety and provides a clear
+schema for all configurable parameters.
 """
 
-import torch
+from typing import Literal
+from dataclasses import dataclass
 
 
-# --- Run Details ---
-RUN_NAME_PREFIX: str = "shakespeare_baseline_L4_E64"
-SEED: int = 1337
+@dataclass
+class SystemConfig:
+    seed: int
+    device: Literal["auto", "cuda", "mps", "cpu"]
 
-# --- Model Parameters ---
-BLOCK_SIZE: int = 64  # Maximum context length for predictions
-N_EMBD: int = 64  # Embedding dimension
-N_HEAD: int = 4  # Number of attention heads
-N_LAYER: int = 4  # Number of transformer blocks
-DROPOUT: float = 0.0  # Dropout rate (0 means no dropout)
 
-# --- Training Parameters ---
-BATCH_SIZE: int = 64  # How many independent sequences to process in parallel
-LEARNING_RATE: float = 3e-4  # Learning rate for the optimizer
-MIN_LR: float = 3e-5  # Minimum learning rate after decay
-WEIGHT_DECAY: float = 1e-1  # Weight decay for regularization
-MAX_ITERS: int = 10000  # Total number of training iterations
-LR_DECAY_ITERS: int = (
-    MAX_ITERS  # No. iters to decay learning rate (should be <= MAX_ITERS)
-)
-WARMUP_ITERS: int = 0  # No. iters for learning rate warmup (should be <= MAX_ITERS)
-USE_COSINE_LR: bool = True  # Whether to use cosine learning rate decay
-EVAL_INTERVAL: int = 500  # How often to evaluate the model on train and val sets
-EVAL_ITERS: int = 200  # Number of iterations to evaluate for each split (train and val)
-GRAD_CLIP: float = 1.0  # Clip gradients at this value
-# Prefer CUDA, then MPS, else CPU
-DEVICE: str = (
-    "cuda"
-    if torch.cuda.is_available()
-    else ("mps" if torch.backends.mps.is_available() else "cpu")
-)
+@dataclass
+class DataConfig:
+    dataset_path: str
+    batch_size: int
 
-# --- Data and Checkpointing ---
-DATASET_PATH: str = "data/tinyshakespeare/input.txt"
-CHECKPOINT_PARENT_DIR: str = "checkpoints"
-CHECKPOINT_FILE_PREFIX: str = "ckpt"
-LOG_INTERVAL: int = 100  # How often to log training progress to the console
+
+@dataclass
+class ModelConfig:
+    block_size: int
+    n_embd: int
+    n_head: int
+    n_layer: int
+    dropout: float
+
+
+@dataclass
+class TrainingConfig:
+    learning_rate: float
+    min_lr: float
+    weight_decay: float
+    max_iters: int
+    lr_decay_iters: int
+    warmup_iters: int
+    use_cosine_lr: bool
+    grad_clip: float
+    eval_interval: int
+    eval_iters: int
+
+
+@dataclass
+class ExperimentConfig:
+    name: str
+    log_interval: int
+
+
+@dataclass
+class TrackingConfig:
+    project: str
+    mode: Literal["online", "offline", "disabled"]
+
+
+@dataclass
+class TransformerConfig:
+    """The root configuration object for the project."""
+
+    system: SystemConfig
+    data: DataConfig
+    model: ModelConfig
+    training: TrainingConfig
+    experiment: ExperimentConfig
+    tracking: TrackingConfig

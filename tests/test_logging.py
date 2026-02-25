@@ -2,8 +2,9 @@ import os
 import tempfile
 import torch
 
-from checkpoint_manager import CheckpointManager, CheckpointState
-from metrics import MetricsLogger, MetricEntry
+from utils.checkpoint import CheckpointManager, CheckpointState
+from src.logging.metric_entry import MetricEntry
+from src.logging.json_logger import MetricsLogger
 
 
 def test_metrics_logger():
@@ -14,23 +15,35 @@ def test_metrics_logger():
     logger = MetricsLogger(path)
     entry1 = MetricEntry(
         iter_num=0,
-        time_ms=100.0,
-        tokens_processed=1000,
-        train_loss=1.5,
-        val_loss=1.6,
-        lr=1e-4,
-        avg_grad_norm=0.5,
-        update_to_weight_ratio=0.01,
+        train={
+            "loss": 1.5,
+            "lr": 1e-4,
+            "grad_norm": 0.5,
+            "avg_grad_norm": 0.45,
+        },
+        val={
+            "loss": 1.6,
+        },
+        system={
+            "time_ms": 100.0,
+            "tokens_processed": 1000,
+        },
     )
     entry2 = MetricEntry(
         iter_num=1,
-        time_ms=102.0,
-        tokens_processed=2000,
-        train_loss=1.4,
-        val_loss=1.5,
-        lr=1e-4,
-        avg_grad_norm=0.4,
-        update_to_weight_ratio=0.02,
+        train={
+            "loss": 1.4,
+            "lr": 1e-4,
+            "grad_norm": 0.4,
+            "avg_grad_norm": 0.425,
+        },
+        val={
+            "loss": 1.5,
+        },
+        system={
+            "time_ms": 102.0,
+            "tokens_processed": 2000,
+        },
     )
 
     # Test logging

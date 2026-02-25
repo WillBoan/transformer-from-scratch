@@ -10,9 +10,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
 import config as current_cfg  # noqa E402
-from model import Transformer  # noqa E402
-from tokenizer import CharTokenizer  # noqa E402
-from checkpoint_manager import CheckpointManager  # noqa E402
+from models.transformer import Transformer  # noqa E402
+from utils.tokenizer import CharTokenizer  # noqa E402
+from utils.checkpoint import CheckpointManager  # noqa E402
 from scripts.utils import get_run_dir, get_latest_run_dir  # noqa E402
 
 

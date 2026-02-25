@@ -9,12 +9,13 @@ from contextlib import nullcontext
 import torch
 
 import config as cfg
-from model import Transformer
-from utils import DataManager
-from tokenizer import CharTokenizer
-from logging_config import setup_logging
-from metrics import MetricsLogger, MetricEntry
-from checkpoint_manager import CheckpointManager, CheckpointState
+from models.transformer import Transformer
+from utils.data import DataManager
+from utils.tokenizer import CharTokenizer
+from loggers.logging_config import setup_logging
+from loggers.metric_entry import MetricEntry
+from loggers.json_logger import JsonLogger
+from utils.checkpoint import CheckpointManager, CheckpointState
 
 import sys
 
@@ -52,7 +53,7 @@ class Trainer:
     logger: Logger
     ctx: torch.autocast | nullcontext[None]
     scaler: torch.GradScaler
-    metrics_logger: MetricsLogger
+    metrics_logger: JsonLogger
     checkpoint_manager: CheckpointManager
     tokenizer: CharTokenizer
     data_manager: DataManager
@@ -100,7 +101,7 @@ class Trainer:
 
         # --- Initialize helpers ---
         metrics_log_path = os.path.join(self.checkpoint_dir, "metrics.jsonl")
-        self.metrics_logger = MetricsLogger(metrics_log_path)
+        self.metrics_logger = JsonLogger(metrics_log_path)
         self.checkpoint_manager = CheckpointManager(self.checkpoint_dir)
 
         # --- Initialize Tokenizer ---
@@ -240,14 +241,20 @@ class Trainer:
             # Log metrics (structured)
             entry = MetricEntry(
                 iter_num=self.iter_num,
-                time_ms=elapsed_time * 1000.0,
-                tokens_processed=tokens_processed,
-                train_loss=losses["train"],
-                val_loss=losses["val"],
-                lr=cfg.LEARNING_RATE,
-                grad_norm=grad_norm,
-                avg_grad_norm=avg_grad_norm,
-                update_to_weight_ratio=update_to_weight_ratio,
+                train={
+                    "loss": losses["train"],
+                    "lr": cfg.LEARNING_RATE,
+                    "grad_norm": grad_norm,
+                    "avg_grad_norm": avg_grad_norm,
+                    "update_to_weight_ratio": update_to_weight_ratio,
+                },
+                val={
+                    "loss": losses["val"],
+                },
+                system={
+                    "time_ms": elapsed_time * 1000,
+                    "tokens_processed": tokens_processed,
+                },
             )
             self.metrics_logger.log(entry)
 

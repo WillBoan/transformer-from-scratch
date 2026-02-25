@@ -1,0 +1,3 @@
+# Settings for Weights & Biases
+project: "transformer-from-scratch"
+mode: "online" # "online", "offline", or "disabled"

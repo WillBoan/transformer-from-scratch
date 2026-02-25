@@ -2,8 +2,8 @@ import pytest
 import torch
 
 from config import BATCH_SIZE, BLOCK_SIZE
-from utils import DataManager
-from tokenizer import CharTokenizer
+from utils.data import DataManager
+from utils.tokenizer import CharTokenizer
 
 
 @pytest.fixture

@@ -1,0 +1,7 @@
+# Use this config to disable remote tracking for local debugging.
+# 
+# Example:
+# python train.py tracking=none
+
+project: null
+mode: "disabled"
