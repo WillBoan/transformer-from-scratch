@@ -62,7 +62,7 @@ def test_metrics_logger():
 def test_checkpoint_manager():
     """Tests saving and loading latest and best checkpoints."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        manager = CheckpointManager(checkpoint_dir=tmpdir)
+        manager = CheckpointManager(output_dir=tmpdir)
 
         # --- State 1: Initial save ---
         state1 = CheckpointState(

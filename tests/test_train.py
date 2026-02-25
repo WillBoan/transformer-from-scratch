@@ -31,7 +31,7 @@ def test_training_loop_creates_artifacts():
     # Use a very small number of iterations for testing
     trainer.train(max_iters=2)
 
-    run_dir = trainer.checkpoint_dir
+    run_dir = trainer.output_dir
     assert os.path.isdir(run_dir), "Run directory was not created."
 
     # Check for expected files
@@ -56,7 +56,7 @@ def test_checkpoint_saving_and_loading():
     trainer1.train(max_iters=5)  # Train for a few iterations
 
     run_id = trainer1.run_id
-    run_dir = trainer1.checkpoint_dir
+    run_dir = trainer1.output_dir
 
     # Check that the checkpoint file was created
     latest_path = os.path.join(run_dir, f"{cfg.CHECKPOINT_FILE_PREFIX}_latest.pt")
