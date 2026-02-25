@@ -20,7 +20,11 @@ class SystemConfig:
 
 @dataclass
 class DataConfig:
+    dataset_name: str
     dataset_path: str
+    vocab_path: str
+    train_data_path: str
+    val_data_path: str
     batch_size: int
 
 

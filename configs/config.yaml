@@ -13,7 +13,11 @@ system:
   device: "auto"  # "auto", "cuda", "mps", or "cpu"
 
 data:
-  dataset_path: "data/tinyshakespeare/input.txt"
+  dataset_name: "tinyshakespeare"
+  dataset_path: "data/${data.dataset_name}/input.txt"
+  vocab_path: "data/${data.dataset_name}/vocab.json"
+  train_data_path: "data/${data.dataset_name}/train.bin"
+  val_data_path: "data/${data.dataset_name}/val.bin"
   batch_size: 64
 
 model:
@@ -33,7 +37,7 @@ training:
   use_cosine_lr: true
   grad_clip: 1.0
   eval_interval: 500
-  eval_iters: 200
+  eval_iters: 200 # Number of batches to evaluate on during each eval phase.
 
 experiment:
   project: "shakespeare_transformer" # The W&B Project name
