@@ -125,20 +125,22 @@ class Trainer:
                 f"Please run the data preparation script first."
             )
 
+        pin_memory = self.device_type == "cuda"
+
         # Create DataLoaders for train and val splits
         self.train_dataloader = create_dataloader(
             data_path=train_data_path,
             block_size=self.cfg.model.block_size,
             batch_size=self.cfg.data.batch_size,
             shuffle=True,  # Shuffle TRUE for training data
-            pin_memory=True,
+            pin_memory=pin_memory,
         )
         self.val_dataloader = create_dataloader(
             data_path=val_data_path,
             block_size=self.cfg.model.block_size,
             batch_size=self.cfg.data.batch_size,
             shuffle=False,  # Shuffle FALSE for validation data
-            pin_memory=True,
+            pin_memory=pin_memory,
         )
 
         # Create an infinite iterator for the training DataLoader,
@@ -323,7 +325,6 @@ class Trainer:
 
     def _train_step(
         self,
-        batch: tuple[Tensor, Tensor],
         calc_update_ratio: bool = False,
     ) -> tuple[float, float, float]:
         """
@@ -335,7 +336,7 @@ class Trainer:
             param_group["lr"] = lr
 
         # Unpack the batch of training data
-        xb, yb = batch
+        xb, yb = self._get_batch("train")
 
         # Forward pass
         with self.ctx:
@@ -387,17 +388,13 @@ class Trainer:
         running_grad_norm = 0.0
         steps_since_eval = 0
 
-        for batch in self.train_iterator:
-            # Move batch to device right away
-            batch = (batch[0].to(self.device), batch[1].to(self.device))
-
+        while self.iter_num < self.cfg.training.max_iters:
             # Determine if this step will trigger an evaluation
             is_eval_step = self._is_eval_step()
 
             # Perform a training step
             _loss, grad_norm, update_ratio = self._train_step(
-                batch,
-                calc_update_ratio=is_eval_step,
+                calc_update_ratio=is_eval_step
             )
 
             running_grad_norm += grad_norm
@@ -422,11 +419,6 @@ class Trainer:
                 running_grad_norm = 0.0
                 steps_since_eval = 0
                 start_time_eval_interval = time.time()
-
-            # Check for termination
-            if self.iter_num >= self.cfg.training.max_iters:
-                self.logger.info(f"Reached max_iters ({self.cfg.training.max_iters}).")
-                break
 
         self.logger.info("--- Training Complete ---")
 
