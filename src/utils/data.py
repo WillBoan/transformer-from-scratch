@@ -1,80 +1,49 @@
-from typing import Literal
 import torch
-from torch import Tensor
-from config import BATCH_SIZE, BLOCK_SIZE, DEVICE, DATASET_PATH
-from utils.tokenizer import CharTokenizer
+from torch.utils.data import Dataset, DataLoader
+import numpy as np
 
 
-class DataManager:
+class PretokenizedDataset(Dataset):
     """
-    DataManager for loading and batching the dataset.
+    A memory-efficient PyTorch Dataset for loading pre-tokenized data.
+    It uses numpy's memory-mapping to avoid loading the entire dataset into RAM,
+    which is crucial for large datasets.
     """
 
-    dataset_path: str
-    text: str
-    tokenizer: CharTokenizer
-    train_data: Tensor
-    val_data: Tensor
+    def __init__(self, data_path: str, block_size: int):
+        super().__init__()
+        # Memory-map the file. Data is not loaded into RAM.
+        self.data = np.memmap(data_path, dtype=np.uint16, mode="r")
+        self.block_size = block_size
 
-    def __init__(
-        self,
-        tokenizer: CharTokenizer,
-        dataset_path: str = DATASET_PATH,
-    ) -> None:
-        """
-        Initializes the data manager by loading and processing the dataset.
+    def __len__(self) -> int:
+        # The number of possible starting positions for a sequence
+        return len(self.data) - self.block_size
 
-        Args:
-            tokenizer (CharTokenizer): The tokenizer instance to use for encoding.
-            dataset_path (str): The path to the dataset file.
-        """
-        self.tokenizer = tokenizer
-        self.dataset_path = dataset_path
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        # Grab a chunk of (block_size + 1) tokens
+        chunk = self.data[idx : idx + self.block_size + 1]  # noqa E203
 
-        # --- Data Loading ---
-        self.load_data(self.dataset_path)
-
-        # --- Data Splitting ---
-        self.split_data(self.text)
-
-    def load_data(self, dataset_path: str) -> None:
-        """Loads the dataset from the specified file path."""
-        # NOTE: This loads the entire dataset into memory
-        # TODO: For larger datasets, consider streaming, chunking, or memory-mapping
-        with open(dataset_path, "r", encoding="utf-8") as f:
-            self.text = f.read()
-
-    def split_data(self, text: str, split_ratio: float = 0.9) -> None:
-        """Split the data into training and validation sets."""
-        data = torch.tensor(self.tokenizer.encode(text), dtype=torch.long)
-        n = int(split_ratio * len(data))
-        self.train_data = data[:n]
-        self.val_data = data[n:]
-
-    def get_batch(
-        self,
-        split: Literal["train", "val"],
-    ) -> tuple[Tensor, Tensor]:
-        """
-        Generate a small batch of data of inputs x and targets y.
-
-        Args:
-            split (Literal["train", "val"]): Which data split to use.
-
-        Returns:
-            A tuple containing the input and target tensors.
-        """
-        # Select the appropriate data split
-        data = self.train_data if split == "train" else self.val_data
-
-        # Generate random starting indices for the batch
-        ix = torch.randint(len(data) - BLOCK_SIZE, (BATCH_SIZE,))
-
-        # Create input sequences (x) and target sequences (y)
-        x = torch.stack([data[i : i + BLOCK_SIZE] for i in ix])  # noqa E203
-        y = torch.stack([data[i + 1 : i + BLOCK_SIZE + 1] for i in ix])  # noqa E203
-
-        # Move tensors to the configured device
-        x, y = x.to(DEVICE), y.to(DEVICE)
-
+        # Convert to int64 tensors, which is standard for embedding layers
+        x = torch.from_numpy(chunk[:-1].astype(np.int64))
+        y = torch.from_numpy(chunk[1:].astype(np.int64))
         return x, y
+
+
+def create_dataloader(
+    data_path: str,
+    block_size: int,
+    batch_size: int,
+    shuffle: bool,
+    num_workers: int = 0,
+    pin_memory: bool = False,
+) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
+    """Creates a PyTorch DataLoader for a pre-tokenized dataset."""
+    dataset = PretokenizedDataset(data_path=data_path, block_size=block_size)
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+    )
