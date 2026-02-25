@@ -2,7 +2,8 @@ from typing import Any, Literal, Final
 import os
 from dataclasses import dataclass
 import torch
-from config import CHECKPOINT_FILE_PREFIX
+
+from src.config import TransformerConfig
 
 
 @dataclass
@@ -34,11 +35,11 @@ class CheckpointManager:
 
     def __init__(
         self,
-        checkpoint_dir: str,
+        output_dir: str,
         prefix: str = CHECKPOINT_FILE_PREFIX,
     ) -> None:
-        os.makedirs(checkpoint_dir, exist_ok=True)
-        self.checkpoint_dir = checkpoint_dir
+        os.makedirs(output_dir, exist_ok=True)
+        self.output_dir = output_dir
         self.prefix = prefix
 
     def _get_checkpoint_path(
@@ -46,7 +47,7 @@ class CheckpointManager:
         checkpoint_type: Literal["latest", "best"],
     ) -> str:
         """Get the target path for a given checkpoint type."""
-        return os.path.join(self.checkpoint_dir, f"{self.prefix}_{checkpoint_type}.pt")
+        return os.path.join(self.output_dir, f"{self.prefix}_{checkpoint_type}.pt")
 
     def _save(
         self,
