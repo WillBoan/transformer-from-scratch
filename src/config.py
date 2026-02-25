@@ -8,12 +8,13 @@ schema for all configurable parameters.
 
 from typing import Literal
 from dataclasses import dataclass
+from src.utils.device_type import DeviceTypeConfig
 
 
 @dataclass
 class SystemConfig:
     seed: int
-    device: Literal["auto", "cuda", "mps", "cpu"]
+    device: DeviceTypeConfig
 
 
 @dataclass
@@ -47,13 +48,13 @@ class TrainingConfig:
 
 @dataclass
 class ExperimentConfig:
-    name: str
-    log_interval: int
+    project: str
+    group: str
+    run_name: str | None
 
 
 @dataclass
 class TrackingConfig:
-    project: str
     mode: Literal["online", "offline", "disabled"]
 
 
