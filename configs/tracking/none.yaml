@@ -3,5 +3,4 @@
 # Example:
 # python train.py tracking=none
 
-project: null
 mode: "disabled"

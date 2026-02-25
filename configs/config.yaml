@@ -36,5 +36,6 @@ training:
   eval_iters: 200
 
 experiment:
-  name: "shakespeare_transformer" # Base name for the experiment group
-  log_interval: 100
+  project: "shakespeare_transformer" # The W&B Project name
+  group: "baseline" # The W&B Group name (eg 'baseline', 'lr_sweep', 'new_attention')
+  run_name: null # The W&B Run name. If null, a name will be generated.
