@@ -1,22 +1,25 @@
+from typing import Literal, Iterator
+from logging import Logger
 import os
 import time
 import math
+from itertools import cycle
 from contextlib import nullcontext
-from logging import Logger
 
 import torch
+from torch import Tensor
 
 from src.config import TransformerConfig
 from src.models.transformer import Transformer
-from src.utils.data import DataManager
+from src.utils.data import create_dataloader
 from src.utils.tokenizer import CharTokenizer
+from src.utils.checkpoint import CheckpointManager, CheckpointState
+from src.utils.device_type import get_device_type
+from src.utils.run_name import generate_run_name
 from src.loggers.logging_config import setup_logging
 from src.loggers.metric_entry import MetricEntry
 from src.loggers.json_logger import JsonLogger
 from src.loggers.wandb_logger import WandbLogger
-from src.utils.checkpoint import CheckpointManager, CheckpointState
-from src.utils.device_type import get_device_type
-from src.utils.run_name import generate_run_name
 
 
 class Trainer:
@@ -69,13 +72,7 @@ class Trainer:
 
         # --- Initialize Tokenizer & Data ---
         self.tokenizer = self._init_tokenizer()
-        self.data_manager = DataManager(
-            tokenizer=self.tokenizer,
-            dataset_path=self.cfg.data.dataset_path,
-            device=self.device,
-            batch_size=self.cfg.data.batch_size,
-            block_size=self.cfg.model.block_size,
-        )
+        self._init_data()
 
         # --- Initialize model ---
         self.model = Transformer(
@@ -108,19 +105,72 @@ class Trainer:
 
     def _init_tokenizer(self) -> CharTokenizer:
         tokenizer = CharTokenizer()
-        vocab_path = os.path.join(self.output_dir, "vocab.json")
 
-        # Check if we are resuming a run that already has a vocab
-        if os.path.exists(vocab_path):
-            self.logger.info(f"Loading existing vocabulary from {vocab_path}")
-            tokenizer.load(vocab_path)
-        else:
-            self.logger.info("Building new vocabulary from dataset...")
-            with open(self.cfg.data.dataset_path, "r", encoding="utf-8") as f:
-                text = f.read()
-            tokenizer.fit(text)
-            tokenizer.save(vocab_path)
+        self.logger.info(f"Loading vocabulary from {self.cfg.data.vocab_path}")
+
+        tokenizer.load(self.cfg.data.vocab_path)
+        # We also save a copy to the run's output directory for perfect reproducibility.
+        tokenizer.save(os.path.join(self.output_dir, "vocab.json"))
+
         return tokenizer
+
+    def _init_data(self) -> None:
+        train_data_path = self.cfg.data.train_data_path
+        val_data_path = self.cfg.data.val_data_path
+
+        if not os.path.exists(train_data_path) or not os.path.exists(val_data_path):
+            raise FileNotFoundError(
+                f"Training or validation data files not found at "
+                f"{train_data_path} and {val_data_path}. "
+                f"Please run the data preparation script first."
+            )
+
+        # Create DataLoaders for train and val splits
+        self.train_dataloader = create_dataloader(
+            data_path=train_data_path,
+            block_size=self.cfg.model.block_size,
+            batch_size=self.cfg.data.batch_size,
+            shuffle=True,  # Shuffle TRUE for training data
+            pin_memory=True,
+        )
+        self.val_dataloader = create_dataloader(
+            data_path=val_data_path,
+            block_size=self.cfg.model.block_size,
+            batch_size=self.cfg.data.batch_size,
+            shuffle=False,  # Shuffle FALSE for validation data
+            pin_memory=True,
+        )
+
+        # Create an infinite iterator for the training DataLoader,
+        # so we can call next() on it indefinitely (in both training and evaluation).
+        self.train_iterator: Iterator[tuple[Tensor, Tensor]] = cycle(
+            self.train_dataloader
+        )
+
+        self.logger.info("Data loaders initialized.")
+
+    def _get_batch(
+        self,
+        split: Literal["train", "val"],
+        val_iterator: Iterator[tuple[Tensor, Tensor]] | None = None,
+    ) -> tuple[Tensor, Tensor]:
+        """
+        Fetches a batch of data for the given split.
+
+        - For 'train', it uses the infinite train_iter.
+        - For 'val', it uses the provided val_iterator, which should be a fresh iterator
+            over the validation DataLoader.
+
+        In either case, the returned tensors are moved to the appropriate device.
+        """
+        if split == "train":
+            X, Y = next(self.train_iterator)
+        else:
+            if val_iterator is None:
+                raise ValueError("val_iterator must be provided when split is 'val'")
+            X, Y = next(val_iterator)
+
+        return X.to(self.device), Y.to(self.device)
 
     def _resume_from_checkpoint(self) -> None:
         state: CheckpointState | None = self.checkpoint_manager.load("latest")
@@ -165,11 +215,15 @@ class Trainer:
         # Set the model to evaluation mode (disabling dropout, etc.)
         self.model.eval()
 
+        # Create a fresh, finite iterator for the validation set
+        # for this specific evaluation run.
+        val_iterator = iter(self.val_dataloader)
+
         # Evaluate loss on both training and validation splits
         for split in ("train", "val"):
             losses = torch.zeros(self.cfg.training.eval_iters)
             for k in range(self.cfg.training.eval_iters):
-                X, Y = self.data_manager.get_batch(split)
+                X, Y = self._get_batch(split, val_iterator)
                 with self.ctx:
                     _logits, loss = self.model(X, Y)
                 losses[k] = loss.item()
@@ -190,6 +244,8 @@ class Trainer:
         )
         # Save latest checkpoint, and also best if improved. Update self.best_val_loss.
         self.best_val_loss = self.checkpoint_manager.save(state, self.best_val_loss)
+
+        # TODO: Also save a W&B Artifact for the checkpoint, if W&B is enabled
 
     def _log_metrics(self, entry: MetricEntry) -> None:
         """Log metrics to all configured loggers."""
@@ -267,6 +323,7 @@ class Trainer:
 
     def _train_step(
         self,
+        batch: tuple[Tensor, Tensor],
         calc_update_ratio: bool = False,
     ) -> tuple[float, float, float]:
         """
@@ -277,8 +334,8 @@ class Trainer:
         for param_group in self.optimizer.param_groups:
             param_group["lr"] = lr
 
-        # Get a batch of training data
-        xb, yb = self.data_manager.get_batch("train")
+        # Unpack the batch of training data
+        xb, yb = batch
 
         # Forward pass
         with self.ctx:
@@ -330,13 +387,17 @@ class Trainer:
         running_grad_norm = 0.0
         steps_since_eval = 0
 
-        while self.iter_num < self.cfg.training.max_iters:
+        for batch in self.train_iterator:
+            # Move batch to device right away
+            batch = (batch[0].to(self.device), batch[1].to(self.device))
+
             # Determine if this step will trigger an evaluation
             is_eval_step = self._is_eval_step()
 
             # Perform a training step
             _loss, grad_norm, update_ratio = self._train_step(
-                calc_update_ratio=is_eval_step
+                batch,
+                calc_update_ratio=is_eval_step,
             )
 
             running_grad_norm += grad_norm
@@ -357,12 +418,15 @@ class Trainer:
                     update_ratio=update_ratio,
                 )
 
-                # Reset accumulators
+                # Reset accumulators and eval interval timer
                 running_grad_norm = 0.0
                 steps_since_eval = 0
+                start_time_eval_interval = time.time()
 
-        # # Final evaluation
-        # self._evaluate_and_checkpoint(self.iter_num, start_time)
+            # Check for termination
+            if self.iter_num >= self.cfg.training.max_iters:
+                self.logger.info(f"Reached max_iters ({self.cfg.training.max_iters}).")
+                break
 
         self.logger.info("--- Training Complete ---")
 
