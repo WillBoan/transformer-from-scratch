@@ -3,9 +3,9 @@ import os
 from logging.handlers import RotatingFileHandler
 
 
-def setup_logging(run_dir: str) -> logging.Logger:
-    """Configure root logger: console + rotating file in the specified run dir."""
-    logger = logging.getLogger("transformer_trainer")
+def setup_logging(output_dir: str) -> logging.Logger:
+    """Configure root logger: console + rotating file in the specified output dir."""
+    logger = logging.getLogger("trainer")
 
     logger.setLevel(logging.INFO)
 
@@ -20,7 +20,7 @@ def setup_logging(run_dir: str) -> logging.Logger:
     ch.setFormatter(fmt)
 
     # Rotating file handler
-    fh_path = os.path.join(run_dir, "logs.log")
+    fh_path = os.path.join(output_dir, "train.log")
     fh = RotatingFileHandler(fh_path, maxBytes=10_000_000, backupCount=5)
     fh.setLevel(logging.INFO)
     fh.setFormatter(fmt)
