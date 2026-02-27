@@ -16,6 +16,8 @@ env/
 
 # Project Artifacts
 data/
+outputs/
+wandb/
 checkpoints/
 examples/
 *.pt
