@@ -35,6 +35,5 @@ def get_device_type(
         return device_type_config
     else:
         raise ValueError(
-            f"Invalid device string: {device_type_config}. "
-            f"Must be 'auto', 'cuda', 'mps', or 'cpu'."
+            f"Invalid device string: {device_type_config}. Must be 'auto', 'cuda', 'mps', or 'cpu'."
         )

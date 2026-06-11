@@ -88,9 +88,7 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
 
         # Compute the head size
-        assert (
-            n_embd % n_head == 0
-        ), "Embedding dimension must be divisible by number of heads"
+        assert n_embd % n_head == 0, "Embedding dimension must be divisible by number of heads"
         self.head_size: Final[int] = n_embd // n_head
 
         # Instantiate the specified number of heads and store them in a ModuleList
@@ -164,42 +162,9 @@ class FeedForward(nn.Module):
 
 class Block(nn.Module):
     """
-    Transformer block: communication followed by computation.
-
-    Each block consists of a multi-head self-attention layer followed by a
-    feed-forward layer, with layer normalization and residual connections
-    around each of these two sub-layers.
-
-    `nn.LayerNorm` normalizes the inputs across the features dimension. It
-    helps stabilize and accelerate training by keeping the input distribution
-    to each layer consistent. In Transformers, LayerNorm is applied to the
-    outputs of the attention and feed-forward sub-layers to improve stability
-    and convergence. Residual connections around each sub-layer let the model
-    learn identity mappings, which helps mitigate vanishing gradients and
-    enables deeper networks.
-
-    Mathematically, `LayerNorm` computes the mean and variance of the input
-    across the features dimension, normalizes the input, and then applies
-    learnable scaling and shifting parameters. This allows the model to
-    maintain the representational power while ensuring that the inputs to
-    each layer have a stable distribution.
-
-    Is this similar to how we use `softmax` to normalize attention scores
-    across the sequence dimension? In both cases we normalize values to
-    improve stability and convergence, but they operate on different
-    dimensions and serve different purposes. `softmax` normalizes across the
-    sequence dimension to produce attention weights, while `LayerNorm`
-    normalizes across the features dimension to stabilize the input
-    distribution for each layer.
-
-    The "features dimension" refers to the last dimension of the input
-    tensor, which corresponds to the embedding dimension in the context of
-    Transformers. For example, if the input tensor has shape
-    (batch_size, sequence_length, embedding_dim), LayerNorm will normalize
-    across the embedding_dim dimension for each token in the sequence.
-
-    "Residual connections" means that we add the input of a layer to its
-    output before passing it to the next layer.
+    A pre-norm transformer block: multi-head self-attention followed by a
+    position-wise feed-forward network, each wrapped in a residual connection
+    with layer normalization applied to its input.
     """
 
     mha: MultiHeadAttention

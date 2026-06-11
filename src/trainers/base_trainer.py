@@ -150,9 +150,7 @@ class Trainer:
 
         # Create an infinite iterator for the training DataLoader,
         # so we can call next() on it indefinitely (in both training and evaluation).
-        self.train_iterator: Iterator[tuple[Tensor, Tensor]] = cycle(
-            self.train_dataloader
-        )
+        self.train_iterator: Iterator[tuple[Tensor, Tensor]] = cycle(self.train_dataloader)
 
         self.logger.info("Data loaders initialized.")
 
@@ -190,8 +188,7 @@ class Trainer:
             self.best_val_loss = best_state.val_loss if best_state else float("inf")
 
             self.logger.info(
-                f"Resumed from checkpoint in run '{self.run_name}', "
-                f"at iteration {self.iter_num}"
+                f"Resumed from checkpoint in run '{self.run_name}', at iteration {self.iter_num}"
             )
         else:
             self.logger.info(f"Starting new run '{self.run_name}' from scratch.")
@@ -287,9 +284,7 @@ class Trainer:
             )
 
             # Calculate cumulative tokens processed
-            tokens_processed = (
-                iter_num * self.cfg.data.batch_size * self.cfg.model.block_size
-            )
+            tokens_processed = iter_num * self.cfg.data.batch_size * self.cfg.model.block_size
             # Calculate tokens per second (for this evaluation interval)
             tokens_per_sec = tokens_processed / (time_ms_eval_interval / 1000)
 
@@ -318,9 +313,7 @@ class Trainer:
             # Save checkpoint(s)
             self._save_checkpoint(iter_num, losses["val"])
         except Exception as e:
-            self.logger.error(
-                f"Failed to evaluate or checkpoint at iter {iter_num}: {e}"
-            )
+            self.logger.error(f"Failed to evaluate or checkpoint at iter {iter_num}: {e}")
 
     def _is_eval_step(self) -> bool:
         """Determines if the current iteration should trigger an evaluation."""
@@ -399,9 +392,7 @@ class Trainer:
             is_eval_step = self._is_eval_step()
 
             # Perform a training step
-            _loss, grad_norm, update_ratio = self._train_step(
-                calc_update_ratio=is_eval_step
-            )
+            _loss, grad_norm, update_ratio = self._train_step(calc_update_ratio=is_eval_step)
 
             running_grad_norm += grad_norm
             steps_since_eval += 1

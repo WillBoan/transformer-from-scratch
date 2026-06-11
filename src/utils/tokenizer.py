@@ -34,17 +34,13 @@ class TextTokenizer:
     def encode(self, s: str) -> list[int]:
         """Encode a string into a list of integers."""
         if not self._stoi:
-            raise ValueError(
-                "Tokenizer vocabulary is empty. Call fit() or load() first."
-            )
+            raise ValueError("Tokenizer vocabulary is empty. Call fit() or load() first.")
         return [self._stoi[c] for c in s]
 
     def decode(self, int_list: list[int]) -> str:
         """Decode a list of integers into a string."""
         if not self._itos:
-            raise ValueError(
-                "Tokenizer vocabulary is empty. Call fit() or load() first."
-            )
+            raise ValueError("Tokenizer vocabulary is empty. Call fit() or load() first.")
         return "".join([self._itos[i] for i in int_list])
 
     def save(self, path: str) -> None:

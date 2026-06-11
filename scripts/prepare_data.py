@@ -6,8 +6,7 @@ from src.utils.tokenizer import CharTokenizer
 
 # --- Configuration ---
 DATASET_URL = (
-    "https://raw.githubusercontent.com/karpathy/char-rnn/master/"
-    "data/tinyshakespeare/input.txt"
+    "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
 )
 DATA_DIR = "data/tinyshakespeare"
 RAW_DATA_PATH = os.path.join(DATA_DIR, "input.txt")
@@ -40,10 +39,7 @@ def prepare_data():
         tokenizer = CharTokenizer()
         tokenizer.fit(text)
         tokenizer.save(VOCAB_PATH)
-        print(
-            f"Vocabulary built and saved to {VOCAB_PATH}. "
-            f"Vocab size: {tokenizer.vocab_size}"
-        )
+        print(f"Vocabulary built and saved to {VOCAB_PATH}. Vocab size: {tokenizer.vocab_size}")
 
         # --- 3. Tokenize and Split Data ---
         data = np.array(tokenizer.encode(text), dtype=np.uint16)

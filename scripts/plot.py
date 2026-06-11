@@ -51,9 +51,7 @@ class TrainingDashboardPlotter:
 
         plt.style.use("seaborn-v0_8-whitegrid")
         fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-        fig.suptitle(
-            f"Training Dashboard | Run: {self.run_id}", fontsize=16, weight="bold"
-        )
+        fig.suptitle(f"Training Dashboard | Run: {self.run_id}", fontsize=16, weight="bold")
 
         # --- Panel 1: Loss Curve ---
         ax = axes[0, 0]
@@ -78,9 +76,7 @@ class TrainingDashboardPlotter:
 
         # --- Panel 4: Gradient Norm ---
         ax = axes[1, 0]
-        ax.plot(
-            x, df["avg_grad_norm"], color="teal", alpha=0.8, label="Average Grad Norm"
-        )
+        ax.plot(x, df["avg_grad_norm"], color="teal", alpha=0.8, label="Average Grad Norm")
         ax.plot(x, df["grad_norm"], color="blue", alpha=0.5, label="Current Grad Norm")
         ax.set_title("Gradient Norm")
         ax.set_ylabel("L2 Norm")
@@ -114,9 +110,7 @@ class TrainingDashboardPlotter:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Generate a training dashboard for a run."
-    )
+    parser = argparse.ArgumentParser(description="Generate a training dashboard for a run.")
     parser.add_argument(
         "run_id",
         nargs="?",

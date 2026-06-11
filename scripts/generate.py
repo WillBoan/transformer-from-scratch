@@ -123,9 +123,7 @@ if __name__ == "__main__":
         default="O Romeo, Romeo! wherefore art thou Romeo?",
         help="Starting text prompt",
     )
-    parser.add_argument(
-        "--tokens", type=int, default=200, help="Number of tokens to generate"
-    )
+    parser.add_argument("--tokens", type=int, default=200, help="Number of tokens to generate")
     parser.add_argument(
         "--ckpt",
         type=str,

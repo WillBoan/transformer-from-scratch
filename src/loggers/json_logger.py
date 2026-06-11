@@ -1,6 +1,7 @@
 import os
 import json
 import threading
+from dataclasses import asdict
 from .metric_entry import MetricEntry
 
 
@@ -16,7 +17,7 @@ class JsonLogger:
         # open lazily per write to be robust to crashes and multiprocess use
 
     def log(self, metrics: MetricEntry) -> None:
-        line = json.dumps(metrics.to_flat_dict(), default=str)
+        line = json.dumps(asdict(metrics), default=str)
         with self._lock:
             with open(self.path, "a", encoding="utf-8") as f:
                 f.write(line + "\n")

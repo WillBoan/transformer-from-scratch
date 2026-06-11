@@ -76,7 +76,7 @@ def test_multi_head_attention_forward():
     B, T, C = 2, 8, 8
     n_head = 2
 
-    mha = MultiHeadAttention(n_head=n_head, block_size=T, n_embd=C)
+    mha = MultiHeadAttention(n_head=n_head, block_size=T, n_embd=C, dropout=0.0)
     x = torch.randn(B, T, C)
     out: Tensor = mha(x)
 
@@ -87,7 +87,7 @@ def test_multi_head_attention_gradients():
     B, T, C = 2, 8, 8
     n_head = 2
 
-    mha = MultiHeadAttention(n_head=n_head, block_size=T, n_embd=C)
+    mha = MultiHeadAttention(n_head=n_head, block_size=T, n_embd=C, dropout=0.0)
     x = torch.randn(B, T, C, requires_grad=True)
 
     out: Tensor = mha(x)
@@ -117,7 +117,7 @@ def test_multi_head_attention_gradients():
 def test_feed_forward_forward():
     B, T, C = 2, 8, 8
 
-    ff = FeedForward(n_embd=C)
+    ff = FeedForward(n_embd=C, dropout=0.0)
     x = torch.randn(B, T, C)
     out: Tensor = ff(x)
 
@@ -127,7 +127,7 @@ def test_feed_forward_forward():
 def test_feed_forward_gradients():
     B, T, C = 2, 8, 8
 
-    ff = FeedForward(n_embd=C)
+    ff = FeedForward(n_embd=C, dropout=0.0)
     x = torch.randn(B, T, C, requires_grad=True)
 
     out: Tensor = ff(x)
@@ -164,7 +164,7 @@ def test_block_forward():
     B, T, C = 2, 8, 8
     n_head = 2
 
-    block = Block(n_head=n_head, block_size=T, n_embd=C)
+    block = Block(n_head=n_head, block_size=T, n_embd=C, dropout=0.0)
     x = torch.randn(B, T, C)
     out: Tensor = block(x)
 
@@ -175,7 +175,7 @@ def test_block_gradients():
     B, T, C = 2, 8, 8
     n_head = 2
 
-    block = Block(n_head=n_head, block_size=T, n_embd=C)
+    block = Block(n_head=n_head, block_size=T, n_embd=C, dropout=0.0)
     x = torch.randn(B, T, C, requires_grad=True)
 
     out: Tensor = block(x)
@@ -205,6 +205,7 @@ def test_transformer_forward():
         n_head=n_head,
         block_size=T,
         n_embd=C,
+        dropout=0.0,
     )
 
     # Create dummy input and target tensors
@@ -238,6 +239,7 @@ def test_transformer_gradients():
         n_head=n_head,
         block_size=T,
         n_embd=C,
+        dropout=0.0,
     )
 
     # Create dummy input and target tensors
