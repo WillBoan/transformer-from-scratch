@@ -1,6 +1,7 @@
 [project]
 name = "transformer_from_scratch"
 version = "0.1.0"
+requires-python = ">=3.12" # PEP 695 `type` statements (src/utils/device_type.py)
 
 [tool.setuptools.packages.find]
 where = ["src", "scripts"]
