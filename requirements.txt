@@ -5,7 +5,4 @@ numpy
 pandas
 matplotlib
 requests
-ruff
-pytest
-ipykernel
 # tiktoken

@@ -1,0 +1,5 @@
+# Development dependencies: runtime + linting, testing, and notebook tooling.
+-r requirements.txt
+ruff
+pytest
+ipykernel
