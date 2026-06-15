@@ -5,8 +5,7 @@ numpy
 pandas
 matplotlib
 requests
-black
-flake8
+ruff
 pytest
 ipykernel
 # tiktoken

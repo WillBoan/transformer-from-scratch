@@ -86,11 +86,16 @@ CUDA / MPS / CPU).
 
 ## Status & roadmap
 
-The implementation and training harness are complete and runnable. Planned next
-steps, in rough order:
+The implementation and training harness are complete and runnable. Planned next —
+the harness is built for these:
 
-- A controlled **experiment with a written report** (e.g. depth vs. width on this
-  dataset) — the harness is built for this; the analysis is the remaining piece.
-- A modern architectural component implemented from scratch (**RoPE** and/or a
-  **KV-cache** for generation).
-- Byte-pair tokenization as an alternative to the character-level vocab.
+- A controlled **experiment with a written report** — e.g. a depth-vs-width study
+  on this dataset, with loss curves and a clear analysis.
+- A modern architectural component, from scratch — **RoPE**, and/or a **KV-cache**
+  for generation.
+- **Probing systematic generalization** — characterizing where a small model breaks
+  on compositional and length-generalization tasks (the failure modes I find most
+  interesting).
+- **Substrate-conversion experiments** — testing how forcing explicit intermediate
+  structure (a scratchpad, or a tool call) changes multi-step symbolic reasoning,
+  tied to the framework in my [research memo on robust reasoning](https://williamboan.com/work/robust-reasoning/).
